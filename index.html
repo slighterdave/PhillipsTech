@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhillipsTech – Managed IT Services</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <!-- Font Awesome bundled locally as fallback -->
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ========== NAVIGATION ========== -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a class="nav-logo" href="#hero">
+        <span class="logo-icon"><i class="fa-solid fa-microchip"></i></span>
+        Phillips<span>Tech</span>
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#services">Services</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#contact" class="btn-nav">Get in Touch</a></li>
+      </ul>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========== HERO (PARALLAX) ========== -->
+  <section class="hero" id="hero">
+    <div class="hero-parallax" id="hero-parallax"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <p class="hero-eyebrow"><i class="fa-solid fa-shield-halved"></i>&nbsp; Trusted Managed IT Partner</p>
+      <h1 class="hero-title">Technology that <br /><span>works for you</span></h1>
+      <p class="hero-sub">PhillipsTech delivers enterprise-grade IT support, cloud solutions, and cybersecurity — tailored for small and mid-size businesses.</p>
+      <div class="hero-actions">
+        <a href="#services" class="btn btn-primary">Explore Services</a>
+        <a href="#contact" class="btn btn-ghost">Start a Conversation</a>
+      </div>
+    </div>
+    <a class="scroll-indicator" href="#services" aria-label="Scroll down">
+      <span></span>
+    </a>
+  </section>
+
+  <!-- ========== STATS STRIP ========== -->
+  <section class="stats-strip">
+    <div class="container stats-grid">
+      <div class="stat">
+        <span class="stat-number" data-target="200">0</span><span class="stat-suffix">+</span>
+        <p>Clients Supported</p>
+      </div>
+      <div class="stat">
+        <span class="stat-number" data-target="99">0</span><span class="stat-suffix">.9%</span>
+        <p>Uptime Guarantee</p>
+      </div>
+      <div class="stat">
+        <span class="stat-number" data-target="15">0</span><span class="stat-suffix">+</span>
+        <p>Years Experience</p>
+      </div>
+      <div class="stat">
+        <span class="stat-number" data-target="24">0</span><span class="stat-suffix">/7</span>
+        <p>Help-Desk Support</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== SERVICES ========== -->
+  <section class="services" id="services">
+    <div class="parallax-bg services-parallax" id="services-parallax"></div>
+    <div class="container section-inner">
+      <div class="section-header">
+        <p class="eyebrow">What We Offer</p>
+        <h2>Comprehensive IT Solutions</h2>
+        <p class="section-sub">From day-to-day helpdesk to strategic cloud migrations, we have you covered every step of the way.</p>
+      </div>
+      <div class="services-grid">
+
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-headset"></i></div>
+          <h3>Managed IT Support</h3>
+          <p>Proactive monitoring, remote & on-site helpdesk, and unlimited support tickets — so your team stays productive.</p>
+          <ul class="service-list">
+            <li><i class="fa-solid fa-check"></i> 24/7 Remote Help-Desk</li>
+            <li><i class="fa-solid fa-check"></i> On-Site Technicians</li>
+            <li><i class="fa-solid fa-check"></i> Patch Management</li>
+          </ul>
+        </div>
+
+        <div class="service-card featured">
+          <div class="service-badge">Most Popular</div>
+          <div class="service-icon"><i class="fa-brands fa-cloudflare"></i></div>
+          <h3>Cloud Services</h3>
+          <p>Microsoft 365, Azure, and hybrid cloud deployments designed to scale with your business and cut infrastructure costs.</p>
+          <ul class="service-list">
+            <li><i class="fa-solid fa-check"></i> Microsoft 365 &amp; Azure</li>
+            <li><i class="fa-solid fa-check"></i> Cloud Migrations</li>
+            <li><i class="fa-solid fa-check"></i> Backup &amp; Disaster Recovery</li>
+          </ul>
+        </div>
+
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-shield-virus"></i></div>
+          <h3>Cybersecurity</h3>
+          <p>Multi-layered security with endpoint protection, email filtering, and staff security-awareness training.</p>
+          <ul class="service-list">
+            <li><i class="fa-solid fa-check"></i> Endpoint Detection &amp; Response</li>
+            <li><i class="fa-solid fa-check"></i> Email Security &amp; Filtering</li>
+            <li><i class="fa-solid fa-check"></i> Security Awareness Training</li>
+          </ul>
+        </div>
+
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-network-wired"></i></div>
+          <h3>Network Management</h3>
+          <p>Firewall configuration, VLAN segmentation, Wi-Fi deployment, and continuous network health monitoring.</p>
+          <ul class="service-list">
+            <li><i class="fa-solid fa-check"></i> Firewall &amp; VPN</li>
+            <li><i class="fa-solid fa-check"></i> Structured Cabling</li>
+            <li><i class="fa-solid fa-check"></i> Network Monitoring</li>
+          </ul>
+        </div>
+
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-server"></i></div>
+          <h3>Server &amp; Infrastructure</h3>
+          <p>Server installation, virtualisation, storage solutions, and hardware lifecycle management.</p>
+          <ul class="service-list">
+            <li><i class="fa-solid fa-check"></i> Virtualisation (VMware / Hyper-V)</li>
+            <li><i class="fa-solid fa-check"></i> Storage &amp; NAS Solutions</li>
+            <li><i class="fa-solid fa-check"></i> Hardware Procurement</li>
+          </ul>
+        </div>
+
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+          <h3>Compliance &amp; Consulting</h3>
+          <p>HIPAA, PCI-DSS, and CMMC readiness assessments, policy documentation, and vCIO strategic advisory.</p>
+          <ul class="service-list">
+            <li><i class="fa-solid fa-check"></i> Compliance Auditing</li>
+            <li><i class="fa-solid fa-check"></i> Policy &amp; Documentation</li>
+            <li><i class="fa-solid fa-check"></i> vCIO Services</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== ABOUT (PARALLAX) ========== -->
+  <section class="about" id="about">
+    <div class="parallax-bg about-parallax" id="about-parallax"></div>
+    <div class="about-overlay"></div>
+    <div class="container section-inner about-inner">
+      <div class="about-image-wrap">
+        <div class="about-image-box">
+          <div class="about-image-placeholder">
+            <i class="fa-solid fa-user-tie"></i>
+          </div>
+          <div class="about-badge">
+            <i class="fa-solid fa-award"></i>
+            <span>Microsoft Certified Partner</span>
+          </div>
+        </div>
+      </div>
+      <div class="about-content">
+        <p class="eyebrow">About PhillipsTech</p>
+        <h2>Your Local IT Partner,<br />Built on Trust</h2>
+        <p>PhillipsTech was founded on a simple belief — small and mid-size businesses deserve the same quality of IT support as large enterprises, without the enterprise price tag.</p>
+        <p>With over 15 years in the field, we've partnered with healthcare providers, law firms, non-profits, and manufacturers to keep their technology running reliably and securely.</p>
+        <div class="about-values">
+          <div class="value">
+            <i class="fa-solid fa-bolt"></i>
+            <div>
+              <h4>Rapid Response</h4>
+              <p>Average first-response time under 15 minutes for critical issues.</p>
+            </div>
+          </div>
+          <div class="value">
+            <i class="fa-solid fa-handshake"></i>
+            <div>
+              <h4>No Lock-in Contracts</h4>
+              <p>Month-to-month agreements — we earn your business every month.</p>
+            </div>
+          </div>
+          <div class="value">
+            <i class="fa-solid fa-magnifying-glass-chart"></i>
+            <div>
+              <h4>Proactive, Not Reactive</h4>
+              <p>We fix problems before they become outages through continuous monitoring.</p>
+            </div>
+          </div>
+        </div>
+        <a href="#contact" class="btn btn-primary">Work With Us</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TESTIMONIALS ========== -->
+  <section class="testimonials">
+    <div class="container">
+      <div class="section-header">
+        <p class="eyebrow">What Clients Say</p>
+        <h2>Trusted by Businesses Like Yours</h2>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+          <p>"PhillipsTech migrated our entire office to Microsoft 365 with zero downtime. Their team was professional, patient, and incredibly knowledgeable."</p>
+          <div class="testimonial-author">
+            <div class="author-avatar">JM</div>
+            <div>
+              <strong>Jessica M.</strong>
+              <span>Office Manager, Riverside Medical Group</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+          <p>"We had a ransomware scare and PhillipsTech had us back up and running within hours. Their incident response was exceptional — we felt completely supported."</p>
+          <div class="testimonial-author">
+            <div class="author-avatar">TK</div>
+            <div>
+              <strong>Tom K.</strong>
+              <span>Managing Partner, Kellerman &amp; Associates Law</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
+          <p>"Finally an MSP that speaks plain English. They explained everything clearly and the support team is always friendly and fast."</p>
+          <div class="testimonial-author">
+            <div class="author-avatar">SR</div>
+            <div>
+              <strong>Sarah R.</strong>
+              <span>Director of Operations, Pinnacle Non-Profit</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CONTACT ========== -->
+  <section class="contact" id="contact">
+    <div class="container section-inner">
+      <div class="contact-info">
+        <p class="eyebrow">Get in Touch</p>
+        <h2>Let's Talk About Your IT Needs</h2>
+        <p>Whether you need immediate support or want to explore a long-term partnership, we'd love to hear from you. Fill out the form and we'll be in touch within one business day.</p>
+        <div class="contact-details">
+          <div class="contact-item">
+            <div class="contact-icon"><i class="fa-solid fa-phone"></i></div>
+            <div>
+              <strong>Phone</strong>
+              <a href="tel:+15551234567">(555) 123-4567</a>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon"><i class="fa-solid fa-envelope"></i></div>
+            <div>
+              <strong>Email</strong>
+              <a href="mailto:hello@phillipstech.io">hello@phillipstech.io</a>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon"><i class="fa-solid fa-location-dot"></i></div>
+            <div>
+              <strong>Location</strong>
+              <span>Serving the Greater Metro Area</span>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon"><i class="fa-solid fa-clock"></i></div>
+            <div>
+              <strong>Hours</strong>
+              <span>Mon–Fri 8am–6pm · Emergency 24/7</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="contact-form-wrap">
+        <form class="contact-form" id="contact-form" novalidate>
+          <h3>Send Us a Message</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Full Name <span class="required">*</span></label>
+              <input type="text" id="name" name="name" placeholder="Jane Smith" required />
+              <span class="form-error" id="error-name"></span>
+            </div>
+            <div class="form-group">
+              <label for="company">Company</label>
+              <input type="text" id="company" name="company" placeholder="Acme Corp" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="email">Email Address <span class="required">*</span></label>
+              <input type="email" id="email" name="email" placeholder="jane@acme.com" required />
+              <span class="form-error" id="error-email"></span>
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone Number</label>
+              <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="service">Service of Interest</label>
+            <select id="service" name="service">
+              <option value="">— Select a service —</option>
+              <option value="managed-support">Managed IT Support</option>
+              <option value="cloud">Cloud Services</option>
+              <option value="cybersecurity">Cybersecurity</option>
+              <option value="network">Network Management</option>
+              <option value="servers">Server &amp; Infrastructure</option>
+              <option value="compliance">Compliance &amp; Consulting</option>
+              <option value="other">Other / General Inquiry</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="message">Message <span class="required">*</span></label>
+            <textarea id="message" name="message" rows="5" placeholder="Tell us about your current IT environment and what you're looking to achieve…" required></textarea>
+            <span class="form-error" id="error-message"></span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-submit">
+            <span class="btn-label">Send Message</span>
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+          <div class="form-success" id="form-success" aria-live="polite">
+            <i class="fa-solid fa-circle-check"></i>
+            <p>Thanks! We'll be in touch within one business day.</p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a class="nav-logo" href="#hero">
+          <span class="logo-icon"><i class="fa-solid fa-microchip"></i></span>
+          Phillips<span>Tech</span>
+        </a>
+        <p>Enterprise-grade IT support for growing businesses.</p>
+        <div class="social-links">
+          <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+          <a href="#" aria-label="Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+        </div>
+      </div>
+      <div class="footer-links">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="#services">Managed IT Support</a></li>
+          <li><a href="#services">Cloud Services</a></li>
+          <li><a href="#services">Cybersecurity</a></li>
+          <li><a href="#services">Network Management</a></li>
+          <li><a href="#services">Compliance &amp; Consulting</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#about">About Us</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li><a href="#contact">Request a Quote</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="tel:+15551234567">(555) 123-4567</a></li>
+          <li><a href="mailto:hello@phillipstech.io">hello@phillipstech.io</a></li>
+          <li><span>Mon–Fri 8am–6pm</span></li>
+          <li><span>Emergency 24/7</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <p>&copy; <span id="year"></span> PhillipsTech. All rights reserved.</p>
+        <p class="footer-legal"><a href="#">Privacy Policy</a> · <a href="#">Terms of Service</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <a class="back-to-top" id="back-to-top" href="#hero" aria-label="Back to top">
+    <i class="fa-solid fa-chevron-up"></i>
+  </a>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
