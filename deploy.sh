@@ -19,6 +19,9 @@ NGINX_CONF_SRC="$REPO_DIR/nginx/phillipstech.conf"
 NGINX_AVAILABLE="/etc/nginx/sites-available/phillipstech"
 NGINX_ENABLED="/etc/nginx/sites-enabled/phillipstech"
 NGINX_DEFAULT_ENABLED="/etc/nginx/sites-enabled/default"
+SSL_DOMAIN="phillipstech.info"
+SSL_CERT="/etc/letsencrypt/live/${SSL_DOMAIN}/fullchain.pem"
+CERTBOT_EMAIL="admin@${SSL_DOMAIN}"
 # ──────────────────────────────────────────────────────────────────────────────
 
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
@@ -66,6 +69,72 @@ fi
 # Fix file ownership so Nginx can serve the files
 sudo chown -R "$DEPLOY_USER":"$WEB_USER" "$REPO_DIR"
 sudo chmod -R 755 "$REPO_DIR"
+
+# ── SSL Certificate Management ────────────────────────────────────────────────
+#
+# The SSL config in nginx/phillipstech.conf requires Let's Encrypt certificates.
+# This section ensures certs are present and up-to-date before we test/reload
+# Nginx.  Two scenarios are handled:
+#
+#   1. Certs already exist  → run "certbot renew" (no-op if not due yet).
+#   2. Certs are missing    → serve a temporary HTTP-only config so the ACME
+#                             HTTP-01 challenge can complete, then obtain certs
+#                             via certbot.  The full SSL config is installed
+#                             after the certs are in place.
+
+if [ -f "$SSL_CERT" ]; then
+  echo "Renewing SSL certificate if due..."
+  sudo certbot renew --quiet 2>/dev/null || \
+    echo "WARNING: certbot renew encountered an issue (the certificate may still be valid)." >&2
+elif command -v certbot >/dev/null 2>&1; then
+  echo "No SSL certificate found at $SSL_CERT. Attempting initial issuance..."
+
+  # Stand up a minimal HTTP-only config so the ACME challenge path is reachable.
+  sudo tee /etc/nginx/sites-available/phillipstech-acme > /dev/null <<ACME_CONF
+server {
+    listen 80;
+    server_name ${SSL_DOMAIN} www.${SSL_DOMAIN};
+    root ${REPO_DIR};
+    location / { try_files \$uri \$uri/ =404; }
+}
+ACME_CONF
+  sudo ln -sf /etc/nginx/sites-available/phillipstech-acme \
+              /etc/nginx/sites-enabled/phillipstech-acme
+  sudo nginx -t && sudo systemctl reload-or-restart nginx
+
+  sudo certbot certonly --webroot -w "$REPO_DIR" \
+    -d "$SSL_DOMAIN" -d "www.${SSL_DOMAIN}" \
+    --non-interactive --agree-tos -m "$CERTBOT_EMAIL" && \
+    echo "SSL certificate obtained." || \
+    echo "WARNING: Could not obtain SSL certificate. The site will run on HTTP until the cert is available." >&2
+
+  # Remove the temporary ACME config
+  sudo rm -f /etc/nginx/sites-enabled/phillipstech-acme \
+             /etc/nginx/sites-available/phillipstech-acme
+else
+  echo "WARNING: certbot is not installed – SSL certificate cannot be managed automatically." >&2
+  echo "         Install certbot and run: sudo certbot certonly --webroot -w $REPO_DIR -d $SSL_DOMAIN -d www.$SSL_DOMAIN" >&2
+fi
+
+# If certs are still missing after the steps above, fall back to HTTP-only so
+# that Nginx can at least start/reload without error.
+if [ ! -f "$SSL_CERT" ]; then
+  echo "SSL certificate unavailable – deploying HTTP-only config as a fallback."
+  NGINX_CONF_SRC="$REPO_DIR/nginx/phillipstech-http.conf"
+  # Generate the fallback config on the fly if it doesn't exist in the repo
+  if [ ! -f "$NGINX_CONF_SRC" ]; then
+    NGINX_CONF_SRC="/tmp/phillipstech-http-fallback.conf"
+    cat > "$NGINX_CONF_SRC" <<HTTP_CONF
+server {
+    listen 80;
+    server_name ${SSL_DOMAIN} www.${SSL_DOMAIN};
+    root ${REPO_DIR};
+    index index.html index.htm;
+    location / { try_files \$uri \$uri/ =404; }
+}
+HTTP_CONF
+  fi
+fi
 
 # ── Nginx configuration ────────────────────────────────────────────────────────
 
