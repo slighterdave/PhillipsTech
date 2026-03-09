@@ -96,6 +96,7 @@ NGINX_TEMP
     echo "Disabled default Nginx site."
   fi
   sudo nginx -t || { echo "ERROR: Temporary Nginx config is invalid. Aborting." >&2; exit 1; }
+  sudo systemctl reset-failed nginx 2>/dev/null || true
   sudo systemctl reload-or-restart nginx
 
   # Obtain the certificate using webroot (does not modify the nginx config)
@@ -130,7 +131,12 @@ sudo nginx -t || { echo "ERROR: Nginx configuration is invalid. Aborting." >&2; 
 
 # Reload Nginx if running (non-disruptive), or start it if stopped
 echo "Reloading Nginx..."
-sudo systemctl reload-or-restart nginx
+sudo systemctl reset-failed nginx 2>/dev/null || true
+sudo systemctl reload-or-restart nginx || {
+  echo "ERROR: Nginx failed to reload/restart. Check the log below for details:" >&2
+  sudo journalctl -u nginx --no-pager -n 30 >&2
+  exit 1
+}
 
 # ── Certbot auto-renewal ───────────────────────────────────────────────────────
 
