@@ -150,11 +150,10 @@ fi
 echo "Installing Nginx site configuration..."
 sudo cp "$NGINX_CONF_SRC" "$NGINX_AVAILABLE"
 
-# Enable the phillipstech site if not already enabled
-if [ ! -L "$NGINX_ENABLED" ]; then
-  sudo ln -s "$NGINX_AVAILABLE" "$NGINX_ENABLED"
-  echo "Enabled phillipstech site."
-fi
+# Ensure the phillipstech site is enabled and points to the config just installed
+# (ln -sf replaces any stale or differently-targeted symlink)
+sudo ln -sf "$NGINX_AVAILABLE" "$NGINX_ENABLED"
+echo "Enabled phillipstech site."
 
 # Disable the default Nginx welcome page if it is still enabled
 if [ -L "$NGINX_DEFAULT_ENABLED" ]; then
