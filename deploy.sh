@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# deploy.sh – Pull the latest code from GitHub, configure Nginx, and reload it.
+# deploy.sh – Pull the latest code from GitHub, configure Nginx with HTTPS, and reload it.
 #
 # Usage:
 #   chmod +x deploy.sh
 #   ./deploy.sh
+#
+# On first run the script obtains a Let's Encrypt TLS certificate automatically.
+# Set CERT_EMAIL to the address Let's Encrypt should use for renewal notices:
+#   CERT_EMAIL=admin@phillipstech.info ./deploy.sh
 #
 # Run from any directory; the script resolves its own path automatically.
 
@@ -19,6 +23,9 @@ NGINX_CONF_SRC="$REPO_DIR/nginx/phillipstech.conf"
 NGINX_AVAILABLE="/etc/nginx/sites-available/phillipstech"
 NGINX_ENABLED="/etc/nginx/sites-enabled/phillipstech"
 NGINX_DEFAULT_ENABLED="/etc/nginx/sites-enabled/default"
+DOMAIN="phillipstech.info"
+CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
+CERT_EMAIL="${CERT_EMAIL:-admin@phillipstech.info}"
 # ──────────────────────────────────────────────────────────────────────────────
 
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
@@ -57,9 +64,52 @@ fi
 sudo chown -R "$DEPLOY_USER":"$WEB_USER" "$REPO_DIR"
 sudo chmod -R 755 "$REPO_DIR"
 
+# ── TLS certificate ────────────────────────────────────────────────────────────
+
+if [ ! -d "$CERT_DIR" ]; then
+  echo "No TLS certificate found for $DOMAIN. Obtaining one via Let's Encrypt..."
+
+  # Install certbot if not already present
+  if ! command -v certbot >/dev/null 2>&1; then
+    echo "Installing certbot..."
+    sudo apt-get update -qq
+    sudo apt-get install -y certbot
+  fi
+
+  # Install a temporary HTTP-only config so Nginx can serve the ACME challenge
+  sudo bash -c "cat > $NGINX_AVAILABLE" <<'NGINX_TEMP'
+server {
+    listen 80;
+    server_name phillipstech.info www.phillipstech.info;
+    root /var/www/phillipstech;
+    location /.well-known/acme-challenge/ {}
+    location / { return 404; }
+}
+NGINX_TEMP
+
+  # Enable site and disable default, then reload for ACME challenge
+  if [ ! -L "$NGINX_ENABLED" ]; then
+    sudo ln -s "$NGINX_AVAILABLE" "$NGINX_ENABLED"
+  fi
+  if [ -L "$NGINX_DEFAULT_ENABLED" ]; then
+    sudo rm "$NGINX_DEFAULT_ENABLED"
+    echo "Disabled default Nginx site."
+  fi
+  sudo nginx -t || { echo "ERROR: Temporary Nginx config is invalid. Aborting." >&2; exit 1; }
+  sudo systemctl reload nginx
+
+  # Obtain the certificate using webroot (does not modify the nginx config)
+  sudo certbot certonly --webroot \
+    --webroot-path "$REPO_DIR" \
+    -d "$DOMAIN" -d "www.$DOMAIN" \
+    --non-interactive --agree-tos -m "$CERT_EMAIL"
+
+  echo "Certificate obtained for $DOMAIN."
+fi
+
 # ── Nginx configuration ────────────────────────────────────────────────────────
 
-# Install the site config
+# Install the full HTTPS site config
 echo "Installing Nginx site configuration..."
 sudo cp "$NGINX_CONF_SRC" "$NGINX_AVAILABLE"
 
@@ -81,5 +131,17 @@ sudo nginx -t || { echo "ERROR: Nginx configuration is invalid. Aborting." >&2; 
 # Reload Nginx (non-disruptive – no downtime)
 echo "Reloading Nginx..."
 sudo systemctl reload nginx
+
+# ── Certbot auto-renewal ───────────────────────────────────────────────────────
+
+# Ensure the Certbot renewal cron job (or systemd timer) is active.
+# Certbot's package installs a systemd timer on Ubuntu 20.04+; fall back to
+# cron on older systems.
+if systemctl list-timers --all 2>/dev/null | grep -q certbot; then
+  echo "Certbot systemd renewal timer is already active."
+elif ! crontab -l 2>/dev/null | grep -q certbot; then
+  (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'sudo systemctl reload nginx'") | crontab -
+  echo "Added certbot renewal cron job."
+fi
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Deployment complete."
