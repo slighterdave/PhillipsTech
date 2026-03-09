@@ -90,6 +90,9 @@ elif command -v certbot >/dev/null 2>&1; then
   echo "No SSL certificate found at $SSL_CERT. Attempting initial issuance..."
 
   # Stand up a minimal HTTP-only config so the ACME challenge path is reachable.
+  # Remove the SSL site symlink first so that nginx -t doesn't fail trying to
+  # load the (not-yet-obtained) SSL certificates.
+  sudo rm -f "$NGINX_ENABLED"
   sudo tee /etc/nginx/sites-available/phillipstech-acme > /dev/null <<ACME_CONF
 server {
     listen 80;
@@ -100,7 +103,8 @@ server {
 ACME_CONF
   sudo ln -sf /etc/nginx/sites-available/phillipstech-acme \
               /etc/nginx/sites-enabled/phillipstech-acme
-  sudo nginx -t && sudo systemctl reload-or-restart nginx
+  sudo nginx -t && sudo systemctl reload-or-restart nginx || \
+    echo "WARNING: Could not start nginx for the ACME challenge; certbot will attempt issuance anyway." >&2
 
   sudo certbot certonly --webroot -w "$REPO_DIR" \
     -d "$SSL_DOMAIN" -d "www.${SSL_DOMAIN}" \
@@ -157,8 +161,11 @@ fi
 # Validate config before reloading
 sudo nginx -t || { echo "ERROR: Nginx configuration is invalid. Aborting." >&2; exit 1; }
 
+# Ensure Nginx starts automatically after a reboot
+sudo systemctl enable nginx || echo "WARNING: Could not enable nginx for auto-start on boot." >&2
+
 # Reload Nginx if running (non-disruptive), or start it if stopped
-echo "Reloading Nginx..."
+echo "Starting/Reloading Nginx..."
 sudo systemctl reset-failed nginx 2>/dev/null || true
 sudo systemctl reload-or-restart nginx || {
   echo "ERROR: Nginx failed to reload/restart. Check the log below for details:" >&2
