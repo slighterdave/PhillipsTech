@@ -96,7 +96,7 @@ NGINX_TEMP
     echo "Disabled default Nginx site."
   fi
   sudo nginx -t || { echo "ERROR: Temporary Nginx config is invalid. Aborting." >&2; exit 1; }
-  sudo systemctl reload nginx
+  sudo systemctl reload-or-restart nginx
 
   # Obtain the certificate using webroot (does not modify the nginx config)
   sudo certbot certonly --webroot \
@@ -128,9 +128,9 @@ fi
 # Validate config before reloading
 sudo nginx -t || { echo "ERROR: Nginx configuration is invalid. Aborting." >&2; exit 1; }
 
-# Reload Nginx (non-disruptive – no downtime)
+# Reload Nginx if running (non-disruptive), or start it if stopped
 echo "Reloading Nginx..."
-sudo systemctl reload nginx
+sudo systemctl reload-or-restart nginx
 
 # ── Certbot auto-renewal ───────────────────────────────────────────────────────
 
