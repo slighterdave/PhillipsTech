@@ -55,46 +55,17 @@ sudo chmod -R 755 /var/www/phillipstech
 
 ### 5. Configure Nginx
 
-Create a new Nginx server block:
+The repository includes a ready-to-use Nginx configuration at `nginx/phillipstech.conf`. Copy it into place, disable the default Nginx welcome page, enable the site, and reload Nginx:
 
 ```bash
-sudo nano /etc/nginx/sites-available/phillipstech
-```
-
-Paste the following configuration (replace `your-domain.com` with your actual domain or IP address):
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com www.your-domain.com;
-
-    root /var/www/phillipstech;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ =404;
-    }
-
-    # Cache static assets
-    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 30d;
-        add_header Cache-Control "public, no-transform";
-    }
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "no-referrer-when-downgrade" always;
-}
-```
-
-Enable the site and reload Nginx:
-
-```bash
+sudo cp /var/www/phillipstech/nginx/phillipstech.conf /etc/nginx/sites-available/phillipstech
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo ln -s /etc/nginx/sites-available/phillipstech /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+> **Note:** Removing the `default` symlink from `sites-enabled` is important — without it, Nginx serves the built-in "Welcome to nginx!" page for all unrecognised hostnames, including `phillipstech.info`.
 
 ---
 
@@ -102,7 +73,7 @@ sudo systemctl reload nginx
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+sudo certbot --nginx -d phillipstech.info -d www.phillipstech.info
 ```
 
 Follow the on-screen prompts. Certbot will automatically update your Nginx config and set up auto-renewal.
@@ -134,7 +105,8 @@ The `deploy.sh` script automates pulling the latest code and refreshing the site
 
 1. Pulls the latest changes from the `main` branch.
 2. Resets any local modifications so the server always matches the repository.
-3. Reloads Nginx to apply any configuration changes.
+3. Installs the Nginx site config from `nginx/phillipstech.conf` and disables the default Nginx welcome page.
+4. Reloads Nginx to apply any configuration changes.
 
 ```bash
 ./deploy.sh

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deploy.sh – Pull the latest code from GitHub and reload Nginx.
+# deploy.sh – Pull the latest code from GitHub, configure Nginx, and reload it.
 #
 # Usage:
 #   chmod +x deploy.sh
@@ -15,6 +15,10 @@ BRANCH="main"
 GIT_REMOTE="origin"
 DEPLOY_USER="ubuntu"
 WEB_USER="www-data"
+NGINX_CONF_SRC="$REPO_DIR/nginx/phillipstech.conf"
+NGINX_AVAILABLE="/etc/nginx/sites-available/phillipstech"
+NGINX_ENABLED="/etc/nginx/sites-enabled/phillipstech"
+NGINX_DEFAULT_ENABLED="/etc/nginx/sites-enabled/default"
 # ──────────────────────────────────────────────────────────────────────────────
 
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
@@ -52,6 +56,27 @@ fi
 # Fix file ownership so Nginx can serve the files
 sudo chown -R "$DEPLOY_USER":"$WEB_USER" "$REPO_DIR"
 sudo chmod -R 755 "$REPO_DIR"
+
+# ── Nginx configuration ────────────────────────────────────────────────────────
+
+# Install the site config
+echo "Installing Nginx site configuration..."
+sudo cp "$NGINX_CONF_SRC" "$NGINX_AVAILABLE"
+
+# Enable the phillipstech site if not already enabled
+if [ ! -L "$NGINX_ENABLED" ]; then
+  sudo ln -s "$NGINX_AVAILABLE" "$NGINX_ENABLED"
+  echo "Enabled phillipstech site."
+fi
+
+# Disable the default Nginx welcome page if it is still enabled
+if [ -L "$NGINX_DEFAULT_ENABLED" ]; then
+  sudo rm "$NGINX_DEFAULT_ENABLED"
+  echo "Disabled default Nginx site."
+fi
+
+# Validate config before reloading
+sudo nginx -t || { echo "ERROR: Nginx configuration is invalid. Aborting." >&2; exit 1; }
 
 # Reload Nginx (non-disruptive – no downtime)
 echo "Reloading Nginx..."
