@@ -18,7 +18,7 @@ Follow these steps to deploy the site on an Ubuntu EC2 instance using Nginx.
 6. Under **Network settings**, create or select a security group with the following inbound rules:
    - **SSH** (port 22) – your IP only
    - **HTTP** (port 80) – `0.0.0.0/0`
-   - **HTTPS** (port 443) – `0.0.0.0/0` *(recommended)*
+   - **HTTPS** (port 443) – `0.0.0.0/0`
 7. Accept the default 8 GiB gp3 volume and click **Launch Instance**.
 8. Note the instance's **Public IPv4 address** or assign an **Elastic IP** for a stable address.
 
@@ -53,59 +53,42 @@ sudo chmod -R 755 /var/www/phillipstech
 
 ---
 
-### 5. Configure Nginx
+### 5. Configure Nginx and Obtain a TLS Certificate
 
-Create a new Nginx server block:
-
-```bash
-sudo nano /etc/nginx/sites-available/phillipstech
-```
-
-Paste the following configuration (replace `your-domain.com` with your actual domain or IP address):
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com www.your-domain.com;
-
-    root /var/www/phillipstech;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ =404;
-    }
-
-    # Cache static assets
-    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 30d;
-        add_header Cache-Control "public, no-transform";
-    }
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "no-referrer-when-downgrade" always;
-}
-```
-
-Enable the site and reload Nginx:
+The `deploy.sh` script handles all of this automatically on first run (see [Set Up the Deploy Script](#7-set-up-the-deploy-script) below). If you prefer to do it manually:
 
 ```bash
+# Install the site config
+sudo cp /var/www/phillipstech/nginx/phillipstech.conf /etc/nginx/sites-available/phillipstech
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo ln -s /etc/nginx/sites-available/phillipstech /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+> **Note:** Removing the `default` symlink from `sites-enabled` is important — without it, Nginx serves the built-in "Welcome to nginx!" page for all unrecognized hostnames, including `phillipstech.info`.
+
 ---
 
-### 6. (Optional) Enable HTTPS with Let's Encrypt
+### 6. Enable HTTPS with Let's Encrypt
+
+The `deploy.sh` script handles certificate issuance automatically on first run. To do it manually:
 
 ```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+sudo apt install -y certbot
+sudo certbot certonly --webroot \
+  --webroot-path /var/www/phillipstech \
+  -d phillipstech.info -d www.phillipstech.info \
+  --non-interactive --agree-tos -m admin@phillipstech.info
 ```
 
-Follow the on-screen prompts. Certbot will automatically update your Nginx config and set up auto-renewal.
+The nginx configuration already references the standard Let's Encrypt certificate paths (`/etc/letsencrypt/live/phillipstech.info/`), so no edits to the config are needed after the certificate is issued.
+
+**Auto-renewal** is managed by certbot's built-in systemd timer (Ubuntu 20.04+). To verify:
+
+```bash
+sudo systemctl status certbot.timer
+```
 
 ---
 
@@ -134,10 +117,14 @@ The `deploy.sh` script automates pulling the latest code and refreshing the site
 
 1. Pulls the latest changes from the `main` branch.
 2. Resets any local modifications so the server always matches the repository.
-3. Reloads Nginx to apply any configuration changes.
+3. On first run: installs certbot, obtains a Let's Encrypt TLS certificate via the webroot method, and sets up auto-renewal.
+4. Installs the Nginx site config from `nginx/phillipstech.conf`, disables the default Nginx welcome page, and validates the config.
+5. Reloads Nginx to apply all changes.
+
+By default the script uses `admin@phillipstech.info` as the Let's Encrypt registration address. Override it with the `CERT_EMAIL` environment variable:
 
 ```bash
-./deploy.sh
+CERT_EMAIL=you@example.com ~/deploy.sh
 ```
 
 > **Tip:** To deploy automatically on a schedule, add it to cron:
