@@ -140,13 +140,28 @@ sudo systemctl reload-or-restart nginx || {
 
 # ── Certbot auto-renewal ───────────────────────────────────────────────────────
 
+# Install a Certbot deploy hook so Nginx is reloaded after every certificate
+# renewal, regardless of whether renewal is triggered by the systemd timer or
+# a cron job.
+CERTBOT_HOOK_DIR="/etc/letsencrypt/renewal-hooks/deploy"
+CERTBOT_HOOK_FILE="$CERTBOT_HOOK_DIR/reload-nginx.sh"
+if [ ! -f "$CERTBOT_HOOK_FILE" ]; then
+  sudo mkdir -p "$CERTBOT_HOOK_DIR"
+  sudo bash -c "cat > $CERTBOT_HOOK_FILE" <<'HOOK'
+#!/bin/sh
+systemctl reload nginx
+HOOK
+  sudo chmod +x "$CERTBOT_HOOK_FILE"
+  echo "Installed Certbot deploy hook: $CERTBOT_HOOK_FILE"
+fi
+
 # Ensure the Certbot renewal cron job (or systemd timer) is active.
 # Certbot's package installs a systemd timer on Ubuntu 20.04+; fall back to
 # cron on older systems.
 if systemctl list-timers --all 2>/dev/null | grep -q certbot; then
   echo "Certbot systemd renewal timer is already active."
 elif ! crontab -l 2>/dev/null | grep -q certbot; then
-  (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'sudo systemctl reload nginx'") | crontab -
+  (crontab -l 2>/dev/null; echo "0 3 * * * sudo certbot renew --quiet") | crontab -
   echo "Added certbot renewal cron job."
 fi
 
