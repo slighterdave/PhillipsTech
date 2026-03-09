@@ -59,11 +59,15 @@ fi
 # ── Self-update ~/deploy.sh from the repo ────────────────────────────────────
 # Keep the copy in the ubuntu home directory in sync with the repo so that
 # future runs always use the latest version of this script.
+# If the script has changed, re-execute the updated copy immediately so that
+# the rest of the deployment (including the Nginx step) always runs with the
+# latest code rather than the stale version that was already loaded into memory.
 SELF="$HOME/deploy.sh"
 if ! diff -q "$REPO_DIR/deploy.sh" "$SELF" >/dev/null 2>&1; then
   cp "$REPO_DIR/deploy.sh" "$SELF"
   chmod +x "$SELF"
-  echo "Updated ~/deploy.sh from repository."
+  echo "Updated ~/deploy.sh from repository. Re-executing with updated script..."
+  exec "$SELF" "$@"
 fi
 
 # Fix file ownership so Nginx can serve the files
