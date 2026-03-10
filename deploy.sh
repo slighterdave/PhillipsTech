@@ -170,6 +170,10 @@ sudo systemctl enable nginx || echo "WARNING: Could not enable nginx for auto-st
 # Reload Nginx if running (non-disruptive), or start it if stopped
 echo "Starting/Reloading Nginx..."
 sudo systemctl reset-failed nginx 2>/dev/null || true
+# Reload systemd manager configuration in case the unit file changed on disk.
+# This silences the "Run 'systemctl daemon-reload'" warning and ensures that
+# a freshly-installed or updated nginx package can be started/reloaded cleanly.
+sudo systemctl daemon-reload
 sudo systemctl reload-or-restart nginx || {
   echo "ERROR: Nginx failed to reload/restart. Check the log below for details:" >&2
   sudo journalctl -u nginx --no-pager -n 30 >&2
