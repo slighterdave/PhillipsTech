@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 # deploy.sh – Pull the latest code from GitHub, configure Nginx, and reload it.
 #
-# Usage:
-#   chmod +x deploy.sh
-#   ./deploy.sh
+# ── How to run ────────────────────────────────────────────────────────────────
+# This script lives in the repository at /var/www/phillipstech/deploy.sh.
+# DO NOT run it directly as ~/deploy.sh; instead use a thin wrapper so that
+# every deployment always uses the latest version from the repository:
 #
-# Run from any directory; the script resolves its own path automatically.
+#   # One-time setup – create the wrapper (see README § "Set Up the Deploy Script")
+#   cat > ~/deploy.sh << 'EOF'
+#   #!/usr/bin/env bash
+#   exec /var/www/phillipstech/deploy.sh "$@"
+#   EOF
+#   chmod +x ~/deploy.sh
+#
+# After that, just run ~/deploy.sh as usual.  The wrapper never needs to be
+# updated – it always delegates to this file which is refreshed by git pull.
+# ──────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
@@ -54,20 +64,6 @@ else
   git clean -fd
 
   echo "Repository updated to $(git rev-parse --short HEAD)."
-fi
-
-# ── Self-update ~/deploy.sh from the repo ────────────────────────────────────
-# Keep the copy in the ubuntu home directory in sync with the repo so that
-# future runs always use the latest version of this script.
-# If the script has changed, re-execute the updated copy immediately so that
-# the rest of the deployment (including the Nginx step) always runs with the
-# latest code rather than the stale version that was already loaded into memory.
-SELF="$HOME/deploy.sh"
-if ! diff -q "$REPO_DIR/deploy.sh" "$SELF" >/dev/null 2>&1; then
-  cp "$REPO_DIR/deploy.sh" "$SELF"
-  chmod +x "$SELF"
-  echo "Updated ~/deploy.sh from repository. Re-executing with updated script..."
-  exec "$SELF" "$@"
 fi
 
 # Fix file ownership so Nginx can serve the files

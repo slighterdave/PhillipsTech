@@ -94,10 +94,16 @@ sudo systemctl status certbot.timer
 
 ### 7. Set Up the Deploy Script
 
-Copy the included `deploy.sh` script to the server and make it executable:
+Create a **permanent thin wrapper** at `~/deploy.sh` that always delegates to the
+copy of `deploy.sh` inside the repository.  Unlike copying the file directly, this
+wrapper **never needs to be updated** – every run automatically uses the latest
+version that was just pulled from GitHub.
 
 ```bash
-cp /var/www/phillipstech/deploy.sh ~/deploy.sh
+cat > ~/deploy.sh << 'EOF'
+#!/usr/bin/env bash
+exec /var/www/phillipstech/deploy.sh "$@"
+EOF
 chmod +x ~/deploy.sh
 ```
 
@@ -106,6 +112,11 @@ Run it any time you want to pull the latest changes from GitHub:
 ```bash
 ~/deploy.sh
 ```
+
+> **Why a wrapper instead of a copy?**
+> If you copy `deploy.sh` to `~/deploy.sh`, the copy becomes stale the moment the
+> repository is updated.  The thin wrapper solves this permanently: `~/deploy.sh`
+> will never need to change, and every deployment runs the freshest repo code.
 
 See the [deploy.sh](#deploysh) section below for details.
 
@@ -147,3 +158,32 @@ python3 -m http.server 8080
 ```
 
 Then visit `http://localhost:8080`.
+
+---
+
+## Troubleshooting
+
+### `nginx.service is not active, cannot reload`
+
+This error means your `~/deploy.sh` is an **old copy** of the script that runs
+`systemctl reload nginx` directly.  Because the service is stopped (or was never
+started), reload fails.
+
+**One-time fix – replace `~/deploy.sh` with the thin wrapper:**
+
+```bash
+cat > ~/deploy.sh << 'EOF'
+#!/usr/bin/env bash
+exec /var/www/phillipstech/deploy.sh "$@"
+EOF
+chmod +x ~/deploy.sh
+~/deploy.sh
+```
+
+The wrapper calls `/var/www/phillipstech/deploy.sh` which handles all edge cases:
+it runs `systemctl daemon-reload` first (clears the "unit file changed" warning),
+then `systemctl reload-or-restart nginx` (starts nginx if stopped, reloads if
+running), and installs a valid HTTP-only config automatically when SSL certificates
+are not yet available.
+
+After the one-time fix above, you never need to update `~/deploy.sh` again.
