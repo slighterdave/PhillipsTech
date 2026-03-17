@@ -31,7 +31,7 @@ NGINX_ENABLED="/etc/nginx/sites-enabled/phillipstech"
 NGINX_DEFAULT_ENABLED="/etc/nginx/sites-enabled/default"
 SSL_DOMAIN="phillipstech.info"
 SSL_CERT="/etc/letsencrypt/live/${SSL_DOMAIN}/fullchain.pem"
-CERTBOT_EMAIL="admin@${SSL_DOMAIN}"
+CERTBOT_EMAIL="${CERT_EMAIL:-admin@${SSL_DOMAIN}}"
 BACKEND_DIR="$REPO_DIR/backend"
 BACKEND_SERVICE="phillipstech-backend"
 BACKEND_SERVICE_FILE="/etc/systemd/system/${BACKEND_SERVICE}.service"
@@ -175,6 +175,13 @@ cd "$REPO_DIR"
 #                             via certbot.  The full SSL config is installed
 #                             after the certs are in place.
 
+# Install certbot if it is not already present (Ubuntu/Debian only – matches the
+# rest of this script which also uses apt-get for Node.js and build tools)
+if ! command -v certbot >/dev/null 2>&1; then
+  echo "certbot not found - installing..."
+  sudo apt-get install -y --no-install-recommends certbot
+fi
+
 if [ -f "$SSL_CERT" ]; then
   echo "Renewing SSL certificate if due..."
   sudo certbot renew --quiet 2>/dev/null || \
@@ -221,9 +228,6 @@ ACME_CONF
   # Remove the temporary ACME config
   sudo rm -f /etc/nginx/sites-enabled/phillipstech-acme \
              /etc/nginx/sites-available/phillipstech-acme
-else
-  echo "WARNING: certbot is not installed – SSL certificate cannot be managed automatically." >&2
-  echo "         Install certbot and run: sudo certbot certonly --webroot -w $REPO_DIR -d $SSL_DOMAIN -d www.$SSL_DOMAIN" >&2
 fi
 
 # If certs are still missing after the steps above, fall back to HTTP-only so
