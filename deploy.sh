@@ -201,9 +201,22 @@ ACME_CONF
 
   sudo certbot certonly --webroot -w "$REPO_DIR" \
     -d "$SSL_DOMAIN" -d "www.${SSL_DOMAIN}" \
-    --non-interactive --agree-tos -m "$CERTBOT_EMAIL" && \
-    echo "SSL certificate obtained." || \
-    echo "WARNING: Could not obtain SSL certificate. The site will run on HTTP until the cert is available." >&2
+    --non-interactive --agree-tos -m "$CERTBOT_EMAIL" || \
+    echo "WARNING: certbot exited with an error. The site will run on HTTP until the cert is available." >&2
+
+  # certbot certonly exits 0 even when it skips renewal ("Certificate not yet
+  # due for renewal; no action taken").  If the cert files are still absent
+  # after that run (e.g. the live/ directory was deleted while certbot's renewal
+  # config still exists), force-renew to regenerate them.
+  if [ ! -f "$SSL_CERT" ]; then
+    echo "Cert file still missing after certbot run -- forcing renewal to regenerate cert files..."
+    sudo certbot certonly --webroot -w "$REPO_DIR" \
+      -d "$SSL_DOMAIN" -d "www.${SSL_DOMAIN}" \
+      --non-interactive --agree-tos -m "$CERTBOT_EMAIL" \
+      --force-renew && \
+      echo "SSL certificate force-renewed and cert files regenerated." || \
+      echo "WARNING: Force renewal failed. The site will continue on HTTP." >&2
+  fi
 
   # Remove the temporary ACME config
   sudo rm -f /etc/nginx/sites-enabled/phillipstech-acme \
