@@ -232,10 +232,20 @@ ACME_CONF
              /etc/nginx/sites-available/phillipstech-acme
 fi
 
-# If certs are still missing after the steps above, fall back to HTTP-only so
-# that Nginx can at least start/reload without error.
-if [ ! -f "$SSL_CERT" ]; then
-  echo "SSL certificate unavailable – deploying HTTP-only config as a fallback."
+# Helper: returns 0 if the cert file exists AND contains a valid, non-expired certificate.
+cert_is_valid() {
+  [ -f "$1" ] && openssl x509 -checkend 0 -noout -in "$1" 2>/dev/null
+}
+
+# If certs are still missing or invalid after the steps above, fall back to
+# HTTP-only so that Nginx can at least start/reload without error.
+if ! cert_is_valid "$SSL_CERT"; then
+  if [ -f "$SSL_CERT" ]; then
+    echo "WARNING: SSL certificate at $SSL_CERT is present but invalid or expired." \
+         "Falling back to HTTP-only config." >&2
+  else
+    echo "SSL certificate unavailable – deploying HTTP-only config as a fallback."
+  fi
   NGINX_CONF_SRC="$REPO_DIR/nginx/phillipstech-http.conf"
   # Generate the fallback config on the fly if it doesn't exist in the repo
   if [ ! -f "$NGINX_CONF_SRC" ]; then
@@ -269,8 +279,20 @@ if [ -L "$NGINX_DEFAULT_ENABLED" ]; then
   echo "Disabled default Nginx site."
 fi
 
-# Validate config before reloading
-sudo nginx -t || { echo "ERROR: Nginx configuration is invalid. Aborting." >&2; exit 1; }
+# Validate config; if the SSL config is broken fall back to HTTP-only rather
+# than aborting and leaving nginx dead (which makes the site unreachable).
+if ! sudo nginx -t 2>/dev/null; then
+  if [ "$NGINX_CONF_SRC" != "$REPO_DIR/nginx/phillipstech-http.conf" ]; then
+    echo "WARNING: Nginx config test failed (SSL certificate may be corrupt)." \
+         "Falling back to HTTP-only configuration." >&2
+    NGINX_CONF_SRC="$REPO_DIR/nginx/phillipstech-http.conf"
+    sudo cp "$NGINX_CONF_SRC" "$NGINX_AVAILABLE"
+    sudo nginx -t || { echo "ERROR: HTTP-only Nginx configuration is also invalid. Aborting." >&2; exit 1; }
+  else
+    echo "ERROR: Nginx configuration is invalid. Aborting." >&2
+    exit 1
+  fi
+fi
 
 # Ensure Nginx starts automatically after a reboot
 sudo systemctl enable nginx || echo "WARNING: Could not enable nginx for auto-start on boot." >&2
