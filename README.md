@@ -37,7 +37,14 @@ ssh -i /path/to/your-key.pem ubuntu@<YOUR_PUBLIC_IP>
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y nginx git
+sudo apt install -y nginx git curl
+```
+
+Node.js (LTS) is installed automatically by `deploy.sh` on first run. To install it manually:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
 ```
 
 ---
@@ -131,6 +138,7 @@ The `deploy.sh` script automates pulling the latest code and refreshing the site
 3. On first run: installs certbot, obtains a Let's Encrypt TLS certificate via the webroot method, and sets up auto-renewal.
 4. Installs the Nginx site config from `nginx/phillipstech.conf`, disables the default Nginx welcome page, and validates the config.
 5. Reloads Nginx to apply all changes.
+6. Installs Node.js if not present, runs `npm install` in `backend/`, and starts/restarts the `phillipstech-backend` systemd service.
 
 By default the script uses `admin@phillipstech.info` as the Let's Encrypt registration address. Override it with the `CERT_EMAIL` environment variable:
 
@@ -145,6 +153,64 @@ CERT_EMAIL=you@example.com ~/deploy.sh
 > # Pull & deploy every day at 2 AM
 > 0 2 * * * /home/ubuntu/deploy.sh >> /home/ubuntu/deploy.log 2>&1
 > ```
+
+---
+
+## Backend & Admin Portal
+
+The site includes a Node.js/Express backend that powers:
+
+- **Contact form** – submissions from the main site are stored in a local SQLite database.
+- **Admin portal** – accessible at `/admin/login.html`, protected by JWT authentication.
+
+### Architecture
+
+```
+Nginx (443/80)
+├── /api/*       → proxy → Node.js backend (127.0.0.1:3000)
+├── /admin/*     → proxy → Node.js backend (static admin pages)
+└── /*           → static files in /var/www/phillipstech
+```
+
+The backend runs as a systemd service (`phillipstech-backend`) managed automatically by `deploy.sh`.
+
+### First-time setup (after `deploy.sh`)
+
+1. **Create the admin account:**
+
+   ```bash
+   cd /var/www/phillipstech/backend
+   node seed.js your@email.com 'YourSecurePassword!'
+   ```
+
+2. **Visit the admin portal:** `https://phillipstech.info/admin/login.html`
+
+### Updating environment variables
+
+The backend reads its configuration from `backend/.env` (auto-created by `deploy.sh` with a generated `JWT_SECRET`). To change settings:
+
+```bash
+nano /var/www/phillipstech/backend/.env
+sudo systemctl restart phillipstech-backend
+```
+
+See `backend/.env.example` for all available options.
+
+### Local development (frontend + backend together)
+
+```bash
+# Terminal 1 – backend
+cd backend
+cp .env.example .env          # fill in JWT_SECRET
+npm install
+node seed.js admin@example.com Password123!
+node server.js                # listens on http://127.0.0.1:3000
+
+# Terminal 2 – frontend static files (served by backend at /admin/* and /api/*)
+# Open http://localhost:3000/admin/login.html in a browser
+# For the main site, use a static server pointing at the repo root:
+python3 -m http.server 8080
+```
 
 ---
 
