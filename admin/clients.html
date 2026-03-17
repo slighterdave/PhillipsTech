@@ -188,6 +188,9 @@
     }
     .action-btn.edit-btn  { color: var(--primary); border-color: var(--primary); }
     .action-btn.edit-btn:hover  { background: var(--primary); color: #fff; }
+    .action-btn.inv-btn   { color: var(--success); border-color: var(--success); }
+    .action-btn.inv-btn:hover   { background: var(--success); color: #fff; }
+    .action-btn.inv-btn:disabled { opacity: .5; cursor: not-allowed; }
     .action-btn.del-btn   { color: var(--danger); border-color: var(--danger); }
     .action-btn.del-btn:hover   { background: var(--danger); color: #fff; }
 
@@ -437,6 +440,10 @@
             <input type="date" id="f-last-invoice" name="last_invoice_date" />
           </div>
           <div class="form-group full">
+            <label for="f-address">Address</label>
+            <textarea id="f-address" name="address" rows="3" placeholder="Street&#10;City&#10;Postcode"></textarea>
+          </div>
+          <div class="form-group full">
             <label for="f-notes">Notes</label>
             <textarea id="f-notes" name="notes" rows="3"></textarea>
           </div>
@@ -517,10 +524,12 @@
                 <td class="date-cell">${formatDate(row.last_invoice_date)}</td>
                 <td>
                   <button class="action-btn edit-btn" data-id="${row.id}">✎ Edit</button>
+                  <button class="action-btn inv-btn"  data-id="${row.id}" ${row.contract_value == null ? 'disabled title="Set a contract value first"' : ''}>⬇ Invoice</button>
                   <button class="action-btn del-btn"  data-id="${row.id}">✕</button>
                 </td>
               `;
               tr.querySelector('.edit-btn').addEventListener('click', () => openModal(row));
+              tr.querySelector('.inv-btn').addEventListener('click', () => generateInvoice(row.id, tr.querySelector('.inv-btn')));
               tr.querySelector('.del-btn').addEventListener('click', () => {
                 if (confirm(`Delete client "${row.name}"?`)) deleteClient(row.id);
               });
@@ -551,6 +560,35 @@
           .catch(() => alert('Could not delete client.'));
       }
 
+      async function generateInvoice(id, btn) {
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+          const res = await authFetch(`/api/admin/clients/${id}/invoice`, { method: 'POST' });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || 'Could not generate invoice.');
+            return;
+          }
+          const blob = await res.blob();
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          const cd   = res.headers.get('Content-Disposition') || '';
+          const match = cd.match(/filename="?([^"]+)"?/);
+          a.download = match ? match[1] : 'invoice.pdf';
+          a.href = url;
+          a.click();
+          URL.revokeObjectURL(url);
+          // Refresh table so Last Invoice date updates
+          loadClients(currentPage);
+        } catch {
+          alert('Network error generating invoice.');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '⬇ Invoice';
+        }
+      }
+
       // ── Modal helpers ─────────────────────────────────────────────────────
       const overlay = document.getElementById('modal-overlay');
       const form = document.getElementById('client-form');
@@ -572,6 +610,7 @@
           document.getElementById('f-contract-value').value   = client.contract_value != null ? client.contract_value : '';
           document.getElementById('f-payment-schedule').value = client.payment_schedule || '';
           document.getElementById('f-last-invoice').value     = client.last_invoice_date || '';
+          document.getElementById('f-address').value          = client.address || '';
           document.getElementById('f-notes').value            = client.notes || '';
         }
 
@@ -613,6 +652,7 @@
           email,
           phone:              document.getElementById('f-phone').value.trim() || null,
           company:            document.getElementById('f-company').value.trim() || null,
+          address:            document.getElementById('f-address').value.trim() || null,
           contract_value:     contractVal !== '' ? parseFloat(contractVal) : null,
           payment_schedule:   document.getElementById('f-payment-schedule').value || null,
           last_invoice_date:  document.getElementById('f-last-invoice').value || null,

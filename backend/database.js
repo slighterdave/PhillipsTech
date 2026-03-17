@@ -36,6 +36,7 @@ db.exec(`
     email              TEXT    NOT NULL,
     phone              TEXT,
     company            TEXT,
+    address            TEXT,
     contract_value     REAL,
     payment_schedule   TEXT,
     last_invoice_date  TEXT,
@@ -44,5 +45,12 @@ db.exec(`
     updated_at         TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Migration: add address column to existing databases that pre-date this schema change
+try {
+  db.exec(`ALTER TABLE clients ADD COLUMN address TEXT`);
+} catch {
+  // Column already exists – safe to ignore
+}
 
 module.exports = db;
