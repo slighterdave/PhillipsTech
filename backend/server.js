@@ -48,7 +48,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const allowedOrigin = process.env.ALLOWED_ORIGIN || `http://localhost:${PORT}`;
 app.use(cors({
   origin: allowedOrigin,
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
