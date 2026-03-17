@@ -220,6 +220,16 @@ router.post('/clients/:id/invoice', (req, res) => {
     return res.status(400).json({ error: 'Client has no services or contract value set.' });
   }
 
+  // Fetch site settings for footer (graceful fallback if unavailable)
+  const siteSettings = {};
+  try {
+    db.prepare('SELECT key, value FROM site_settings').all().forEach(r => {
+      siteSettings[r.key] = r.value;
+    });
+  } catch {
+    // Settings unavailable; footer will render without address/payment details
+  }
+
   // Dates
   const today    = new Date();
   const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -358,11 +368,11 @@ router.post('/clients/:id/invoice', (req, res) => {
     doc.moveTo(colAmt, totalsTop + 32).lineTo(doc.page.width - 50, totalsTop + 32)
        .strokeColor('#dee2e6').lineWidth(0.5).stroke();
 
-    doc.rect(colAmt - 10, totalsTop + 36, doc.page.width - 50 - colAmt + 10, 28).fill('#f0f2f5');
-    doc.fontSize(11).fillColor(DARK).font('Helvetica-Bold')
-       .text('TOTAL DUE', colAmt, totalsTop + 43, { width: colTotal - colAmt - 10, align: 'right' });
+    doc.rect(colAmt - 10, totalsTop + 36, doc.page.width - 50 - colAmt + 10, 44).fill('#f0f2f5');
+    doc.fontSize(9).fillColor(MUTED).font('Helvetica')
+       .text('TOTAL DUE', colAmt, totalsTop + 42, { width: colTotal - colAmt - 10, align: 'right' });
     doc.fontSize(14).fillColor(BRAND_BLUE).font('Helvetica-Bold')
-       .text(fmtCurrency(totalAmount), colAmt, totalsTop + 58, { width: colTotal - colAmt - 10, align: 'right' });
+       .text(fmtCurrency(totalAmount), colAmt, totalsTop + 55, { width: colTotal - colAmt - 10, align: 'right' });
 
   } else {
     // ── Contract-value based invoice (legacy) ─────────────────────────────
@@ -410,22 +420,125 @@ router.post('/clients/:id/invoice', (req, res) => {
     doc.moveTo(colAmt, totalsTop + 32).lineTo(doc.page.width - 50, totalsTop + 32)
        .strokeColor('#dee2e6').lineWidth(0.5).stroke();
 
-    doc.rect(colAmt - 10, totalsTop + 36, doc.page.width - 50 - colAmt + 10, 28).fill('#f0f2f5');
-    doc.fontSize(11).fillColor(DARK).font('Helvetica-Bold')
-       .text('TOTAL DUE', colAmt, totalsTop + 43, { width: colTotal - colAmt - 10, align: 'right' });
+    doc.rect(colAmt - 10, totalsTop + 36, doc.page.width - 50 - colAmt + 10, 44).fill('#f0f2f5');
+    doc.fontSize(9).fillColor(MUTED).font('Helvetica')
+       .text('TOTAL DUE', colAmt, totalsTop + 42, { width: colTotal - colAmt - 10, align: 'right' });
     doc.fontSize(14).fillColor(BRAND_BLUE).font('Helvetica-Bold')
-       .text(fmtCurrency(invoiceAmount), colAmt, totalsTop + 58, { width: colTotal - colAmt - 10, align: 'right' });
+       .text(fmtCurrency(invoiceAmount), colAmt, totalsTop + 55, { width: colTotal - colAmt - 10, align: 'right' });
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  const footerY = doc.page.height - 60;
-  doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY)
+  // Parse settings content for footer columns
+  const fAddrLines = siteSettings.address
+    ? siteSettings.address.split(/\n/).map(l => l.trim()).filter(Boolean)
+    : [];
+
+  const fBankLines = [];
+  if (siteSettings.bank_name)           fBankLines.push(siteSettings.bank_name);
+  if (siteSettings.bank_account_name)   fBankLines.push(`Acct: ${siteSettings.bank_account_name}`);
+  if (siteSettings.bank_sort_code)      fBankLines.push(`Sort: ${siteSettings.bank_sort_code}`);
+  if (siteSettings.bank_account_number) fBankLines.push(`No: ${siteSettings.bank_account_number}`);
+
+  const fCryptoLines = [];
+  if (siteSettings.btc_address) fCryptoLines.push({ label: 'BTC', addr: siteSettings.btc_address });
+  if (siteSettings.sol_address) fCryptoLines.push({ label: 'SOL', addr: siteSettings.sol_address });
+
+  const hasAddr    = fAddrLines.length > 0;
+  const hasBank    = fBankLines.length > 0;
+  const hasCrypto  = fCryptoLines.length > 0;
+  const hasContent = hasAddr || hasBank || hasCrypto;
+
+  // Footer line/spacing constants
+  const FL = 13;            // line height
+  const FH = 11;            // section header height
+  const FG = 10;            // gap between sections
+  const CRYPTO_LABEL_H = 10; // height of crypto coin label line
+
+  // Calculate column heights
+  // Crypto uses 2 lines per entry (label line + address line) for long addresses
+  const cryptoEntryH = CRYPTO_LABEL_H + FL; // label + address line
+  const addrColH   = hasAddr   ? FH + fAddrLines.length * FL        : 0;
+  const bankColH   = hasBank   ? FH + fBankLines.length * FL        : 0;
+  const cryptoColH = hasCrypto ? FH + fCryptoLines.length * cryptoEntryH : 0;
+  const maxColH    = Math.max(addrColH, bankColH, cryptoColH);
+
+  // Position footer elements from the bottom of the page
+  // All y values must be < page.height - 50 (bottom margin)
+  const safeBottom  = doc.page.height - 55;           // ~787 for A4
+  const brandY      = safeBottom - FL;                // brand line
+  const thankY      = brandY - FL;                    // thank-you line
+  const innerDivY   = thankY - FG;                    // divider above thank-you
+  const contentEndY = innerDivY - (hasContent ? FG : 0);
+  const contentY    = contentEndY - (hasContent ? maxColH : 0);
+  const topDivY     = contentY - (hasContent ? FG : 0);
+
+  // Footer background strip
+  doc.rect(0, topDivY - 6, doc.page.width, doc.page.height - topDivY + 6)
+     .fill('#f8f9fa');
+
+  // Top divider
+  doc.moveTo(50, topDivY).lineTo(doc.page.width - 50, topDivY)
      .strokeColor('#dee2e6').lineWidth(0.5).stroke();
+
+  if (hasContent) {
+    const col1X = 50;
+    const col2X = 215;
+    const col3X = 395;
+
+    // ── Address column ──────────────────────────────────────────────────────
+    if (hasAddr) {
+      let y = contentY;
+      doc.fontSize(7).fillColor(MUTED).font('Helvetica-Bold')
+         .text('ADDRESS', col1X, y, { width: 155 });
+      y += FH;
+      fAddrLines.forEach(line => {
+        doc.fontSize(8.5).fillColor(DARK).font('Helvetica')
+           .text(line, col1X, y, { width: 155, lineBreak: false });
+        y += FL;
+      });
+    }
+
+    // ── Bank transfer column ────────────────────────────────────────────────
+    if (hasBank) {
+      let y = contentY;
+      doc.fontSize(7).fillColor(MUTED).font('Helvetica-Bold')
+         .text('BANK TRANSFER', col2X, y, { width: 170 });
+      y += FH;
+      fBankLines.forEach(line => {
+        doc.fontSize(8.5).fillColor(DARK).font('Helvetica')
+           .text(line, col2X, y, { width: 170, lineBreak: false });
+        y += FL;
+      });
+    }
+
+    // ── Cryptocurrency column ───────────────────────────────────────────────
+    if (hasCrypto) {
+      let y = contentY;
+      doc.fontSize(7).fillColor(MUTED).font('Helvetica-Bold')
+         .text('CRYPTOCURRENCY', col3X, y, { width: 150 });
+      y += FH;
+      fCryptoLines.forEach(({ label, addr }) => {
+        doc.fontSize(7).fillColor(MUTED).font('Helvetica-Bold')
+           .text(label + ':', col3X, y, { width: 150 });
+        y += CRYPTO_LABEL_H;
+        doc.fontSize(7).fillColor(DARK).font('Helvetica')
+           .text(addr, col3X, y, { lineBreak: false });
+        y += FL;
+      });
+    }
+
+    // Inner divider separating columns from thank-you text
+    doc.moveTo(50, innerDivY).lineTo(doc.page.width - 50, innerDivY)
+       .strokeColor('#dee2e6').lineWidth(0.3).stroke();
+  }
+
+  // Thank-you message and brand line
   doc.fontSize(8).fillColor(MUTED).font('Helvetica')
      .text('Thank you for your business. Please make payment within 14 days of invoice date.',
-           50, footerY + 10, { align: 'center', width: doc.page.width - 100 })
+           50, thankY, { align: 'center', width: doc.page.width - 100 });
+  doc.fontSize(8).fillColor(MUTED).font('Helvetica')
      .text('PhillipsTech  •  info@phillipstech.co.uk',
-           50, footerY + 24, { align: 'center', width: doc.page.width - 100 });
+           50, brandY, { align: 'center', width: doc.page.width - 100 });
 
   doc.end();
 });
