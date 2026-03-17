@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings – PhillipsTech Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #0066cc;
+      --primary-dark: #0052a3;
+      --sidebar-bg:   #1a1a2e;
+      --sidebar-text: #c9d1d9;
+      --sidebar-hover:#243251;
+      --text:         #1a1a2e;
+      --text-muted:   #6c757d;
+      --border:       #dee2e6;
+      --bg:           #f0f2f5;
+      --white:        #ffffff;
+      --success:      #198754;
+      --danger:       #dc3545;
+      --radius:       8px;
+      --shadow:       0 2px 12px rgba(0,0,0,.07);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+    .sidebar-brand {
+      padding: 1.5rem 1.25rem 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar-brand span { color: var(--primary); }
+    .sidebar nav { flex: 1; padding: .75rem 0; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .625rem 1.25rem;
+      cursor: pointer;
+      font-size: .9rem;
+      border-left: 3px solid transparent;
+      transition: background .15s, border-color .15s;
+      color: var(--sidebar-text);
+      text-decoration: none;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: var(--sidebar-hover);
+      border-left-color: var(--primary);
+      color: #fff;
+    }
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,.08);
+      font-size: .8rem;
+      color: var(--sidebar-text);
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #fc8181;
+      cursor: pointer;
+      font-size: .85rem;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .logout-btn:hover { color: #fff; }
+
+    /* ── Main ── */
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .topbar h2 { font-size: 1.15rem; font-weight: 700; }
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .875rem;
+      color: var(--text-muted);
+    }
+    .user-pill strong { color: var(--text); }
+
+    .content { padding: 1.5rem; max-width: 720px; }
+
+    /* ── Settings card ── */
+    .settings-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .settings-card-header {
+      padding: .875rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: #f8f9fa;
+    }
+    .settings-card-header h3 {
+      font-size: .95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .settings-card-body { padding: 1.25rem 1.5rem; }
+
+    /* ── Form elements ── */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-group label {
+      display: block;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: .35rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: .9rem;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--white);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0,102,204,.12);
+    }
+    .form-group textarea { resize: vertical; }
+    .form-hint {
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: .3rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* ── Crypto address field ── */
+    .crypto-field {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: .85rem;
+      letter-spacing: .03em;
+    }
+
+    /* ── Action bar ── */
+    .action-bar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding-top: .5rem;
+    }
+    .btn-save {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .55rem 1.5rem;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: var(--primary-dark); }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+
+    .save-status {
+      font-size: .85rem;
+      font-weight: 600;
+      display: none;
+    }
+    .save-status.success { color: var(--success); display: inline; }
+    .save-status.error   { color: var(--danger);  display: inline; }
+
+    @media (max-width: 640px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand"><span>Phillips</span>Tech</div>
+    <nav>
+      <a class="nav-item" href="dashboard.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="clients.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Clients
+      </a>
+      <a class="nav-item active" href="settings.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      Signed in as <br/>
+      <strong id="sidebar-email">—</strong><br/>
+      <button class="logout-btn" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main">
+    <div class="topbar">
+      <h2>Site Settings</h2>
+      <div class="user-pill">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        <strong id="topbar-email">—</strong>
+      </div>
+    </div>
+
+    <div class="content">
+      <form id="settings-form" novalidate>
+
+        <!-- Business Address -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>
+              Business Address
+            </h3>
+          </div>
+          <div class="settings-card-body">
+            <div class="form-group">
+              <label for="s-address">Address</label>
+              <textarea id="s-address" name="address" rows="4" placeholder="Street&#10;City&#10;County&#10;Postcode"></textarea>
+              <p class="form-hint">This address appears on invoices and other correspondence.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Details -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+              Bank Details
+            </h3>
+          </div>
+          <div class="settings-card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="s-bank-name">Bank Name</label>
+                <input type="text" id="s-bank-name" name="bank_name" autocomplete="off" placeholder="e.g. Barclays" />
+              </div>
+              <div class="form-group">
+                <label for="s-bank-account-name">Account Name</label>
+                <input type="text" id="s-bank-account-name" name="bank_account_name" autocomplete="off" placeholder="e.g. PhillipsTech Ltd" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="s-bank-sort-code">Sort Code</label>
+                <input type="text" id="s-bank-sort-code" name="bank_sort_code" autocomplete="off" inputmode="numeric" placeholder="e.g. 20-00-00" maxlength="8" />
+              </div>
+              <div class="form-group">
+                <label for="s-bank-account-number">Account Number</label>
+                <input type="text" id="s-bank-account-number" name="bank_account_number" autocomplete="off" inputmode="numeric" placeholder="e.g. 12345678" maxlength="8" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Crypto Addresses -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.5 2C6.81 2 3 5.81 3 10.5S6.81 19 11.5 19h.5v3c4.86-2.34 8-7 8-11.5C20 5.81 16.19 2 11.5 2zm1 14.5h-2v-2h2v2zm0-4h-2c0-3.25 3-3 3-5 0-1.1-.9-2-2-2s-2 .9-2 2h-2c0-2.21 1.79-4 4-4s4 1.79 4 4c0 2.5-3 2.75-3 5z"/></svg>
+              Cryptocurrency Addresses
+            </h3>
+          </div>
+          <div class="settings-card-body">
+            <div class="form-group">
+              <label for="s-btc-address">Bitcoin (BTC) Address</label>
+              <input type="text" id="s-btc-address" name="btc_address" class="crypto-field" autocomplete="off" spellcheck="false" placeholder="e.g. bc1q…" />
+              <p class="form-hint">Your Bitcoin wallet address for receiving BTC payments.</p>
+            </div>
+            <div class="form-group">
+              <label for="s-sol-address">Solana (SOL) Address</label>
+              <input type="text" id="s-sol-address" name="sol_address" class="crypto-field" autocomplete="off" spellcheck="false" placeholder="e.g. 5YNmS…" />
+              <p class="form-hint">Your Solana wallet address for receiving SOL payments.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Save -->
+        <div class="action-bar">
+          <button type="submit" class="btn-save" id="save-btn">Save Settings</button>
+          <span class="save-status" id="save-status"></span>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem('admin_token');
+      if (!token) { window.location.replace('/admin/login.html'); return; }
+
+      // ── Auth helpers ─────────────────────────────────────────────────────
+      async function authFetch(url, options = {}) {
+        const res = await fetch(url, {
+          ...options,
+          headers: { ...(options.headers || {}), Authorization: 'Bearer ' + token },
+        });
+        if (res.status === 401) { signOut(); }
+        return res;
+      }
+
+      function signOut() {
+        localStorage.removeItem('admin_token');
+        window.location.replace('/admin/login.html');
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', signOut);
+
+      // ── Verify token & show email ─────────────────────────────────────────
+      authFetch('/api/auth/verify')
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+          document.getElementById('sidebar-email').textContent = data.email;
+          document.getElementById('topbar-email').textContent = data.email;
+        })
+        .catch(signOut);
+
+      // ── Load settings ─────────────────────────────────────────────────────
+      function loadSettings() {
+        authFetch('/api/admin/settings')
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(data => {
+            document.getElementById('s-address').value            = data.address            || '';
+            document.getElementById('s-bank-name').value          = data.bank_name          || '';
+            document.getElementById('s-bank-account-name').value  = data.bank_account_name  || '';
+            document.getElementById('s-bank-sort-code').value     = data.bank_sort_code     || '';
+            document.getElementById('s-bank-account-number').value= data.bank_account_number|| '';
+            document.getElementById('s-btc-address').value        = data.btc_address        || '';
+            document.getElementById('s-sol-address').value        = data.sol_address        || '';
+          })
+          .catch(() => showStatus('Failed to load settings.', false));
+      }
+
+      // ── Save settings ─────────────────────────────────────────────────────
+      const form    = document.getElementById('settings-form');
+      const saveBtn = document.getElementById('save-btn');
+      const status  = document.getElementById('save-status');
+
+      function showStatus(msg, ok) {
+        status.textContent = msg;
+        status.className   = 'save-status ' + (ok ? 'success' : 'error');
+        setTimeout(() => { status.className = 'save-status'; }, 4000);
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+        status.className = 'save-status';
+
+        const payload = {
+          address:             document.getElementById('s-address').value,
+          bank_name:           document.getElementById('s-bank-name').value,
+          bank_account_name:   document.getElementById('s-bank-account-name').value,
+          bank_sort_code:      document.getElementById('s-bank-sort-code').value,
+          bank_account_number: document.getElementById('s-bank-account-number').value,
+          btc_address:         document.getElementById('s-btc-address').value,
+          sol_address:         document.getElementById('s-sol-address').value,
+        };
+
+        try {
+          const res = await authFetch('/api/admin/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            showStatus('Settings saved.', true);
+          } else {
+            const data = await res.json().catch(() => ({}));
+            showStatus(data.error || 'Could not save settings.', false);
+          }
+        } catch {
+          showStatus('Network error. Please try again.', false);
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Settings';
+        }
+      });
+
+      // ── Init ──────────────────────────────────────────────────────────────
+      loadSettings();
+    })();
+  </script>
+</body>
+</html>

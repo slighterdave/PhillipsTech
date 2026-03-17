@@ -342,4 +342,51 @@ router.delete('/clients/:id', (req, res) => {
   return res.json({ success: true });
 });
 
+// ── Site settings routes ───────────────────────────────────────────────────
+
+const SETTINGS_KEYS = [
+  'address',
+  'bank_name',
+  'bank_account_name',
+  'bank_sort_code',
+  'bank_account_number',
+  'btc_address',
+  'sol_address',
+];
+
+// GET /api/admin/settings – retrieve all site settings
+router.get('/settings', (req, res) => {
+  const rows = db.prepare('SELECT key, value FROM site_settings').all();
+  const settings = {};
+  SETTINGS_KEYS.forEach(k => { settings[k] = ''; });
+  rows.forEach(r => { settings[r.key] = r.value; });
+  return res.json(settings);
+});
+
+// PUT /api/admin/settings – upsert site settings
+router.put('/settings', (req, res) => {
+  const body = req.body || {};
+  const upsert = db.prepare(`
+    INSERT INTO site_settings (key, value, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `);
+
+  const saveMany = db.transaction((data) => {
+    SETTINGS_KEYS.forEach(k => {
+      if (k in data) {
+        upsert.run(k, String(data[k]));
+      }
+    });
+  });
+
+  saveMany(body);
+
+  const rows = db.prepare('SELECT key, value FROM site_settings').all();
+  const settings = {};
+  SETTINGS_KEYS.forEach(k => { settings[k] = ''; });
+  rows.forEach(r => { settings[r.key] = r.value; });
+  return res.json(settings);
+});
+
 module.exports = router;
