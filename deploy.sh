@@ -184,7 +184,7 @@ if ! command -v certbot >/dev/null 2>&1; then
   sudo apt-get install -y --no-install-recommends certbot
 fi
 
-if [ -f "$SSL_CERT" ]; then
+if sudo test -f "$SSL_CERT"; then
   echo "Renewing SSL certificate if due..."
   sudo certbot renew --quiet 2>/dev/null || \
     echo "WARNING: certbot renew encountered an issue (the certificate may still be valid)." >&2
@@ -217,14 +217,17 @@ ACME_CONF
   # due for renewal; no action taken").  If the cert files are still absent
   # after that run (e.g. the live/ directory was deleted while certbot's renewal
   # config still exists), force-renew to regenerate them.
-  if [ ! -f "$SSL_CERT" ]; then
-    echo "Cert file still missing after certbot run -- forcing renewal to regenerate cert files..."
+  if ! sudo test -f "$SSL_CERT"; then
+    echo "Cert file still missing after certbot run -- reinstalling to regenerate cert files..."
+    # Use --reinstall to restore the live/ symlinks from the existing archive
+    # rather than --force-renew, which would issue a brand-new certificate and
+    # risk hitting the Let's Encrypt rate limit (5 certs per 168 h per domain).
     sudo certbot certonly --webroot -w "$REPO_DIR" \
       -d "$SSL_DOMAIN" -d "www.${SSL_DOMAIN}" \
       --non-interactive --agree-tos -m "$CERTBOT_EMAIL" \
-      --force-renew && \
-      echo "SSL certificate force-renewed and cert files regenerated." || \
-      echo "WARNING: Force renewal failed. The site will continue on HTTP." >&2
+      --reinstall && \
+      echo "SSL certificate reinstalled and cert files regenerated." || \
+      echo "WARNING: Cert reinstall failed. The site will continue on HTTP." >&2
   fi
 
   # Remove the temporary ACME config
@@ -234,13 +237,13 @@ fi
 
 # Helper: returns 0 if the cert file exists AND contains a valid, non-expired certificate.
 cert_is_valid() {
-  [ -f "$1" ] && openssl x509 -checkend 0 -noout -in "$1" 2>/dev/null
+  sudo test -f "$1" && sudo openssl x509 -checkend 0 -noout -in "$1" 2>/dev/null
 }
 
 # If certs are still missing or invalid after the steps above, fall back to
 # HTTP-only so that Nginx can at least start/reload without error.
 if ! cert_is_valid "$SSL_CERT"; then
-  if [ -f "$SSL_CERT" ]; then
+  if sudo test -f "$SSL_CERT"; then
     echo "WARNING: SSL certificate at $SSL_CERT is present but invalid or expired." \
          "Falling back to HTTP-only config." >&2
   else
