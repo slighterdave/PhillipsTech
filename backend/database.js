@@ -50,6 +50,21 @@ db.exec(`
     value      TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS services (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT    NOT NULL,
+    description TEXT,
+    unit_price  REAL    NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS client_services (
+    client_id   INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    service_id  INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    PRIMARY KEY (client_id, service_id)
+  );
 `);
 
 // Migration: add address column to existing databases that pre-date this schema change

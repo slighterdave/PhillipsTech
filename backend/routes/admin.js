@@ -83,6 +83,12 @@ router.get('/clients', (req, res) => {
     .all(limit, offset);
   const total = db.prepare('SELECT COUNT(*) AS count FROM clients').get().count;
 
+  // Attach service_ids array to each client row
+  const svcStmt = db.prepare('SELECT service_id FROM client_services WHERE client_id = ?');
+  rows.forEach(row => {
+    row.service_ids = svcStmt.all(row.id).map(r => r.service_id);
+  });
+
   return res.json({ data: rows, total, page, limit });
 });
 
@@ -90,12 +96,14 @@ router.get('/clients', (req, res) => {
 router.get('/clients/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Client not found.' });
+  const svcRows = db.prepare('SELECT service_id FROM client_services WHERE client_id = ?').all(req.params.id);
+  row.service_ids = svcRows.map(r => r.service_id);
   return res.json(row);
 });
 
 // POST /api/admin/clients – create a new client
 router.post('/clients', (req, res) => {
-  const { name, email, phone, company, address, contract_value, payment_schedule, last_invoice_date, notes } = req.body || {};
+  const { name, email, phone, company, address, contract_value, payment_schedule, last_invoice_date, notes, service_ids } = req.body || {};
 
   if (!name || typeof name !== 'string' || name.trim().length < 1) {
     return res.status(400).json({ error: 'name is required.' });
@@ -119,7 +127,19 @@ router.post('/clients', (req, res) => {
     notes !== undefined ? (notes ? String(notes).trim() : null) : null,
   );
 
-  const created = db.prepare('SELECT * FROM clients WHERE id = ?').get(result.lastInsertRowid);
+  const newId = result.lastInsertRowid;
+
+  // Save service associations
+  if (Array.isArray(service_ids) && service_ids.length > 0) {
+    const insertSvc = db.prepare('INSERT OR IGNORE INTO client_services (client_id, service_id) VALUES (?, ?)');
+    const saveServices = db.transaction((ids) => {
+      ids.forEach(sid => insertSvc.run(newId, Number(sid)));
+    });
+    saveServices(service_ids);
+  }
+
+  const created = db.prepare('SELECT * FROM clients WHERE id = ?').get(newId);
+  created.service_ids = db.prepare('SELECT service_id FROM client_services WHERE client_id = ?').all(newId).map(r => r.service_id);
   return res.status(201).json(created);
 });
 
@@ -129,7 +149,7 @@ router.put('/clients/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
   if (!existing) return res.status(404).json({ error: 'Client not found.' });
 
-  const { name, email, phone, company, address, contract_value, payment_schedule, last_invoice_date, notes } = req.body || {};
+  const { name, email, phone, company, address, contract_value, payment_schedule, last_invoice_date, notes, service_ids } = req.body || {};
 
   if (name !== undefined && (typeof name !== 'string' || name.trim().length < 1)) {
     return res.status(400).json({ error: 'name cannot be blank.' });
@@ -162,7 +182,18 @@ router.put('/clients/:id', (req, res) => {
     updated.notes, id,
   );
 
+  // Update service associations if provided
+  if (Array.isArray(service_ids)) {
+    const replaceServices = db.transaction((ids) => {
+      db.prepare('DELETE FROM client_services WHERE client_id = ?').run(id);
+      const insertSvc = db.prepare('INSERT OR IGNORE INTO client_services (client_id, service_id) VALUES (?, ?)');
+      ids.forEach(sid => insertSvc.run(Number(id), Number(sid)));
+    });
+    replaceServices(service_ids);
+  }
+
   const row = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+  row.service_ids = db.prepare('SELECT service_id FROM client_services WHERE client_id = ?').all(id).map(r => r.service_id);
   return res.json(row);
 });
 
@@ -171,22 +202,19 @@ router.post('/clients/:id/invoice', (req, res) => {
   const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
   if (!client) return res.status(404).json({ error: 'Client not found.' });
 
-  if (client.contract_value == null) {
-    return res.status(400).json({ error: 'Client has no contract value set.' });
-  }
+  // Fetch selected services for this client
+  const selectedServices = db.prepare(`
+    SELECT s.* FROM services s
+    INNER JOIN client_services cs ON cs.service_id = s.id
+    WHERE cs.client_id = ?
+    ORDER BY s.name ASC
+  `).all(req.params.id);
 
-  // Calculate the per-period invoice amount
-  const scheduleMultiplier = {
-    Weekly:        52,
-    Monthly:       12,
-    Quarterly:      4,
-    'Bi-annually':  2,
-    Annually:       1,
-    'On completion':1,
-  };
-  const schedule = client.payment_schedule || '';
-  const divisor  = scheduleMultiplier[schedule] || 1;
-  const invoiceAmount = client.contract_value / divisor;
+  const hasServices = selectedServices.length > 0;
+
+  if (!hasServices && client.contract_value == null) {
+    return res.status(400).json({ error: 'Client has no services or contract value set.' });
+  }
 
   // Dates
   const today    = new Date();
@@ -278,49 +306,112 @@ router.post('/clients/:id/invoice', (req, res) => {
   // ── Line items table ──────────────────────────────────────────────────────
   const tableTop = Math.max(billY + 40, billTop + 110);
   const colDesc   = 50;
-  const colPeriod = 300;
   const colAmt    = 420;
   const colTotal  = doc.page.width - 50;
 
-  // Table header
-  doc.rect(50, tableTop, doc.page.width - 100, 24).fill(BRAND_BLUE);
-  doc.fontSize(9).fillColor('#ffffff').font('Helvetica-Bold')
-     .text('DESCRIPTION',    colDesc,   tableTop + 7)
-     .text('PERIOD',         colPeriod, tableTop + 7)
-     .text('AMOUNT',         colAmt,    tableTop + 7, { width: colTotal - colAmt, align: 'right' });
+  if (hasServices) {
+    // ── Services-based invoice ────────────────────────────────────────────
+    const colDescWidth = colAmt - colDesc - 10;
 
-  // Table row
-  const rowY = tableTop + 28;
-  const description = `Managed IT Services${schedule ? ' – ' + schedule : ''}`;
-  doc.fontSize(10).fillColor(DARK).font('Helvetica')
-     .text(description, colDesc, rowY)
-     .text(schedule || '—', colPeriod, rowY)
-     .text(fmtCurrency(invoiceAmount), colAmt, rowY, { width: colTotal - colAmt, align: 'right' });
+    // Table header
+    doc.rect(50, tableTop, doc.page.width - 100, 24).fill(BRAND_BLUE);
+    doc.fontSize(9).fillColor('#ffffff').font('Helvetica-Bold')
+       .text('DESCRIPTION', colDesc,  tableTop + 7, { width: colDescWidth })
+       .text('AMOUNT',      colAmt,   tableTop + 7, { width: colTotal - colAmt, align: 'right' });
 
-  // Row bottom border
-  const rowBottom = rowY + 22;
-  doc.moveTo(50, rowBottom).lineTo(doc.page.width - 50, rowBottom)
-     .strokeColor('#dee2e6').lineWidth(0.5).stroke();
+    let rowY = tableTop + 28;
+    let totalAmount = 0;
 
-  // ── Totals ────────────────────────────────────────────────────────────────
-  const totalsTop = rowBottom + 16;
+    selectedServices.forEach((svc, idx) => {
+      const rowBg = idx % 2 === 1 ? '#f8f9fa' : '#ffffff';
+      const rowHeight = svc.description ? 32 : 22;
+      doc.rect(50, rowY, doc.page.width - 100, rowHeight).fill(rowBg);
 
-  // Sub-total row
-  doc.fontSize(10).fillColor(MUTED).font('Helvetica')
-     .text('Subtotal', colAmt, totalsTop, { width: colTotal - colAmt, align: 'right' });
-  doc.fontSize(10).fillColor(DARK)
-     .text(fmtCurrency(invoiceAmount), colAmt, totalsTop + 14, { width: colTotal - colAmt, align: 'right' });
+      doc.fontSize(10).fillColor(DARK).font('Helvetica-Bold')
+         .text(svc.name, colDesc, rowY + 6, { width: colDescWidth });
+      if (svc.description) {
+        doc.fontSize(8).font('Helvetica').fillColor(MUTED)
+           .text(svc.description, colDesc, rowY + 19, { width: colDescWidth });
+      }
+      doc.fontSize(10).fillColor(DARK).font('Helvetica')
+         .text(fmtCurrency(svc.unit_price), colAmt, rowY + 6, { width: colTotal - colAmt, align: 'right' });
 
-  // Divider before total
-  doc.moveTo(colAmt, totalsTop + 32).lineTo(doc.page.width - 50, totalsTop + 32)
-     .strokeColor('#dee2e6').lineWidth(0.5).stroke();
+      doc.moveTo(50, rowY + rowHeight).lineTo(doc.page.width - 50, rowY + rowHeight)
+         .strokeColor('#dee2e6').lineWidth(0.5).stroke();
 
-  // TOTAL row
-  doc.rect(colAmt - 10, totalsTop + 36, doc.page.width - 50 - colAmt + 10, 28).fill('#f0f2f5');
-  doc.fontSize(11).fillColor(DARK).font('Helvetica-Bold')
-     .text('TOTAL DUE', colAmt, totalsTop + 43, { width: colTotal - colAmt - 10, align: 'right' });
-  doc.fontSize(14).fillColor(BRAND_BLUE).font('Helvetica-Bold')
-     .text(fmtCurrency(invoiceAmount), colAmt, totalsTop + 58, { width: colTotal - colAmt - 10, align: 'right' });
+      totalAmount += Number(svc.unit_price);
+      rowY += rowHeight;
+    });
+
+    // ── Totals ──────────────────────────────────────────────────────────
+    const totalsTop = rowY + 16;
+
+    doc.fontSize(10).fillColor(MUTED).font('Helvetica')
+       .text('Subtotal', colAmt, totalsTop, { width: colTotal - colAmt, align: 'right' });
+    doc.fontSize(10).fillColor(DARK)
+       .text(fmtCurrency(totalAmount), colAmt, totalsTop + 14, { width: colTotal - colAmt, align: 'right' });
+
+    doc.moveTo(colAmt, totalsTop + 32).lineTo(doc.page.width - 50, totalsTop + 32)
+       .strokeColor('#dee2e6').lineWidth(0.5).stroke();
+
+    doc.rect(colAmt - 10, totalsTop + 36, doc.page.width - 50 - colAmt + 10, 28).fill('#f0f2f5');
+    doc.fontSize(11).fillColor(DARK).font('Helvetica-Bold')
+       .text('TOTAL DUE', colAmt, totalsTop + 43, { width: colTotal - colAmt - 10, align: 'right' });
+    doc.fontSize(14).fillColor(BRAND_BLUE).font('Helvetica-Bold')
+       .text(fmtCurrency(totalAmount), colAmt, totalsTop + 58, { width: colTotal - colAmt - 10, align: 'right' });
+
+  } else {
+    // ── Contract-value based invoice (legacy) ─────────────────────────────
+    const scheduleMultiplier = {
+      Weekly:        52,
+      Monthly:       12,
+      Quarterly:      4,
+      'Bi-annually':  2,
+      Annually:       1,
+      'On completion':1,
+    };
+    const schedule = client.payment_schedule || '';
+    const divisor  = scheduleMultiplier[schedule] || 1;
+    const invoiceAmount = client.contract_value / divisor;
+
+    const colPeriod = 300;
+
+    // Table header
+    doc.rect(50, tableTop, doc.page.width - 100, 24).fill(BRAND_BLUE);
+    doc.fontSize(9).fillColor('#ffffff').font('Helvetica-Bold')
+       .text('DESCRIPTION',    colDesc,   tableTop + 7)
+       .text('PERIOD',         colPeriod, tableTop + 7)
+       .text('AMOUNT',         colAmt,    tableTop + 7, { width: colTotal - colAmt, align: 'right' });
+
+    // Table row
+    const rowY = tableTop + 28;
+    const description = `Managed IT Services${schedule ? ' – ' + schedule : ''}`;
+    doc.fontSize(10).fillColor(DARK).font('Helvetica')
+       .text(description, colDesc, rowY)
+       .text(schedule || '—', colPeriod, rowY)
+       .text(fmtCurrency(invoiceAmount), colAmt, rowY, { width: colTotal - colAmt, align: 'right' });
+
+    const rowBottom = rowY + 22;
+    doc.moveTo(50, rowBottom).lineTo(doc.page.width - 50, rowBottom)
+       .strokeColor('#dee2e6').lineWidth(0.5).stroke();
+
+    // ── Totals ──────────────────────────────────────────────────────────
+    const totalsTop = rowBottom + 16;
+
+    doc.fontSize(10).fillColor(MUTED).font('Helvetica')
+       .text('Subtotal', colAmt, totalsTop, { width: colTotal - colAmt, align: 'right' });
+    doc.fontSize(10).fillColor(DARK)
+       .text(fmtCurrency(invoiceAmount), colAmt, totalsTop + 14, { width: colTotal - colAmt, align: 'right' });
+
+    doc.moveTo(colAmt, totalsTop + 32).lineTo(doc.page.width - 50, totalsTop + 32)
+       .strokeColor('#dee2e6').lineWidth(0.5).stroke();
+
+    doc.rect(colAmt - 10, totalsTop + 36, doc.page.width - 50 - colAmt + 10, 28).fill('#f0f2f5');
+    doc.fontSize(11).fillColor(DARK).font('Helvetica-Bold')
+       .text('TOTAL DUE', colAmt, totalsTop + 43, { width: colTotal - colAmt - 10, align: 'right' });
+    doc.fontSize(14).fillColor(BRAND_BLUE).font('Helvetica-Bold')
+       .text(fmtCurrency(invoiceAmount), colAmt, totalsTop + 58, { width: colTotal - colAmt - 10, align: 'right' });
+  }
 
   // ── Footer ────────────────────────────────────────────────────────────────
   const footerY = doc.page.height - 60;
@@ -339,6 +430,70 @@ router.post('/clients/:id/invoice', (req, res) => {
 router.delete('/clients/:id', (req, res) => {
   const result = db.prepare('DELETE FROM clients WHERE id = ?').run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Client not found.' });
+  return res.json({ success: true });
+});
+
+// ── Services routes ────────────────────────────────────────────────────────
+
+// GET /api/admin/services – list all services
+router.get('/services', (req, res) => {
+  const rows = db.prepare('SELECT * FROM services ORDER BY name ASC').all();
+  return res.json(rows);
+});
+
+// POST /api/admin/services – create a service
+router.post('/services', (req, res) => {
+  const { name, description, unit_price } = req.body || {};
+
+  if (!name || typeof name !== 'string' || name.trim().length < 1) {
+    return res.status(400).json({ error: 'name is required.' });
+  }
+
+  const result = db.prepare(`
+    INSERT INTO services (name, description, unit_price)
+    VALUES (?, ?, ?)
+  `).run(
+    name.trim(),
+    description ? String(description).trim() : null,
+    unit_price !== undefined && unit_price !== null ? Number(unit_price) : 0,
+  );
+
+  const created = db.prepare('SELECT * FROM services WHERE id = ?').get(result.lastInsertRowid);
+  return res.status(201).json(created);
+});
+
+// PUT /api/admin/services/:id – update a service
+router.put('/services/:id', (req, res) => {
+  const { id } = req.params;
+  const existing = db.prepare('SELECT * FROM services WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Service not found.' });
+
+  const { name, description, unit_price } = req.body || {};
+
+  if (name !== undefined && (typeof name !== 'string' || name.trim().length < 1)) {
+    return res.status(400).json({ error: 'name cannot be blank.' });
+  }
+
+  const updated = {
+    name:        name !== undefined        ? name.trim()                                           : existing.name,
+    description: description !== undefined ? (description ? String(description).trim() : null)    : existing.description,
+    unit_price:  unit_price !== undefined  ? (unit_price !== null ? Number(unit_price) : 0)        : existing.unit_price,
+  };
+
+  db.prepare(`
+    UPDATE services
+    SET name = ?, description = ?, unit_price = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(updated.name, updated.description, updated.unit_price, id);
+
+  const row = db.prepare('SELECT * FROM services WHERE id = ?').get(id);
+  return res.json(row);
+});
+
+// DELETE /api/admin/services/:id – delete a service
+router.delete('/services/:id', (req, res) => {
+  const result = db.prepare('DELETE FROM services WHERE id = ?').run(req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'Service not found.' });
   return res.json({ success: true });
 });
 
