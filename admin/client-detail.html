@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client Detail – PhillipsTech Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #0066cc;
+      --primary-dark: #0052a3;
+      --sidebar-bg:   #1a1a2e;
+      --sidebar-text: #c9d1d9;
+      --sidebar-hover:#243251;
+      --text:         #1a1a2e;
+      --text-muted:   #6c757d;
+      --border:       #dee2e6;
+      --bg:           #f0f2f5;
+      --white:        #ffffff;
+      --success:      #198754;
+      --danger:       #dc3545;
+      --warning:      #fd7e14;
+      --radius:       8px;
+      --shadow:       0 2px 12px rgba(0,0,0,.07);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+    .sidebar-brand {
+      padding: 1.5rem 1.25rem 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar-brand span { color: var(--primary); }
+    .sidebar nav { flex: 1; padding: .75rem 0; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .625rem 1.25rem;
+      cursor: pointer;
+      font-size: .9rem;
+      border-left: 3px solid transparent;
+      transition: background .15s, border-color .15s;
+      color: var(--sidebar-text);
+      text-decoration: none;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: var(--sidebar-hover);
+      border-left-color: var(--primary);
+      color: #fff;
+    }
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,.08);
+      font-size: .8rem;
+      color: var(--sidebar-text);
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #fc8181;
+      cursor: pointer;
+      font-size: .85rem;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .logout-btn:hover { color: #fff; }
+
+    /* ── Main ── */
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .topbar-left { display: flex; align-items: center; gap: .75rem; }
+    .topbar h2 { font-size: 1.15rem; font-weight: 700; }
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .875rem;
+      color: var(--text-muted);
+    }
+    .user-pill strong { color: var(--text); }
+    .content { padding: 1.5rem; }
+
+    /* ── Client info card ── */
+    .client-header {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .client-header-info h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: .2rem; }
+    .client-header-info .company { font-size: .95rem; color: var(--text-muted); margin-bottom: .5rem; }
+    .client-meta { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .875rem; }
+    .client-meta-item { display: flex; align-items: center; gap: .35rem; color: var(--text-muted); }
+    .client-meta-item strong { color: var(--text); }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .4rem .9rem;
+      font-size: .875rem;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text);
+      transition: background .15s;
+    }
+    .back-btn:hover { background: var(--bg); }
+    .edit-client-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .4rem .9rem;
+      font-size: .875rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .edit-client-btn:hover { background: var(--primary-dark); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: .65rem 1.25rem;
+      font-size: .9rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--text-muted);
+      margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 700;
+    }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Section card ── */
+    .section-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .section-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-header h3 { font-size: 1rem; font-weight: 700; }
+
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      text-align: left;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9fa; }
+    .date-cell { white-space: nowrap; color: var(--text-muted); font-size: .8rem; }
+    .muted { color: var(--text-muted); }
+    .currency-cell { white-space: nowrap; }
+    .pre-wrap { white-space: pre-wrap; }
+
+    .badge {
+      display: inline-block;
+      padding: .2rem .5rem;
+      border-radius: 100px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .badge-paid    { background: #d1fae5; color: #065f46; }
+    .badge-unpaid  { background: #fee2e2; color: #991b1b; }
+    .badge-active    { background: #dbeafe; color: #1e40af; }
+    .badge-completed { background: #d1fae5; color: #065f46; }
+    .badge-on-hold   { background: #fef9c3; color: #854d0e; }
+
+    .type-badge {
+      display: inline-block;
+      padding: .1rem .45rem;
+      border-radius: 100px;
+      font-size: .73rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .type-call    { background: #ede9fe; color: #5b21b6; }
+    .type-email   { background: #dbeafe; color: #1e40af; }
+    .type-meeting { background: #fef9c3; color: #854d0e; }
+    .type-note    { background: #f3f4f6; color: #374151; }
+
+    /* ── Buttons ── */
+    .add-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .4rem .9rem;
+      font-size: .875rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      transition: background .15s;
+    }
+    .add-btn:hover { background: var(--primary-dark); }
+    .action-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .25rem .6rem;
+      font-size: .8rem;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      margin-right: .25rem;
+    }
+    .action-btn.edit-btn { color: var(--primary); border-color: var(--primary); }
+    .action-btn.edit-btn:hover { background: var(--primary); color: #fff; }
+    .action-btn.pay-btn  { color: var(--success); border-color: var(--success); }
+    .action-btn.pay-btn:hover { background: var(--success); color: #fff; }
+    .action-btn.del-btn  { color: var(--danger); border-color: var(--danger); }
+    .action-btn.del-btn:hover { background: var(--danger); color: #fff; }
+    .action-btn.pdf-btn  { color: var(--text-muted); border-color: var(--border); }
+    .action-btn.pdf-btn:hover { background: var(--text-muted); color: #fff; }
+
+    .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+      max-width: 540px;
+      width: 100%;
+      margin: 1rem;
+      padding: 1.5rem;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 1.25rem; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: .3rem; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: .8rem; font-weight: 600; color: var(--text-muted); }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .45rem .65rem;
+      font-size: .875rem;
+      font-family: inherit;
+      width: 100%;
+      transition: border-color .15s;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { outline: none; border-color: var(--primary); }
+    .form-group textarea { resize: vertical; min-height: 72px; }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+      margin-top: 1.25rem;
+    }
+    .btn-cancel {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .45rem 1rem;
+      font-size: .9rem;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { background: var(--bg); }
+    .btn-save {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .45rem 1.1rem;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: var(--primary-dark); }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .form-error {
+      margin-top: .75rem;
+      color: var(--danger);
+      font-size: .85rem;
+      padding: .5rem .75rem;
+      background: #fff0f0;
+      border: 1px solid #fcc;
+      border-radius: 4px;
+      display: none;
+    }
+    .form-error.visible { display: block; }
+
+    /* ── Invoice preview modal ── */
+    .invoice-modal { max-width: 820px; }
+    .invoice-preview-container {
+      width: 100%; height: 70vh;
+      background: #e8e8e8;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .invoice-preview-container iframe { width: 100%; height: 100%; border: none; display: none; }
+    .invoice-preview-loading { color: var(--text-muted); font-size: .9rem; }
+    .btn-send {
+      background: var(--success);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .45rem 1.1rem;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-send:hover { background: #157347; }
+    .btn-send:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Mobile ── */
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: .4rem;
+      color: var(--text);
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .hamburger:hover { background: var(--bg); }
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 199;
+    }
+    .sidebar-backdrop.open { display: block; }
+
+    @media (max-width: 768px) {
+      .hamburger { display: flex; align-items: center; justify-content: center; }
+      .sidebar { transform: translateX(-100%); transition: transform .25s ease; z-index: 200; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .topbar { padding: .75rem 1rem; }
+      .content { padding: 1rem .75rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .modal { margin: .5rem; padding: 1.25rem 1rem; }
+      #table-wrap { overflow-x: auto; }
+      .invoice-preview-container { height: 50vh; }
+      .client-header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span>Phillips</span>Tech</div>
+    <nav>
+      <a class="nav-item" href="dashboard.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item active" href="clients.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Clients
+      </a>
+      <a class="nav-item" href="invoices.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        Invoices
+      </a>
+      <a class="nav-item" href="services.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z"/></svg>
+        Services
+      </a>
+      <a class="nav-item" href="settings.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      Signed in as <br/>
+      <strong id="sidebar-email">—</strong><br/>
+      <button class="logout-btn" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="hamburger-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <h2 id="topbar-title">Client</h2>
+      </div>
+      <div class="user-pill">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        <strong id="topbar-email">—</strong>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Client info card -->
+      <div class="client-header" id="client-header">
+        <div class="client-header-info">
+          <h3 id="ch-name">—</h3>
+          <div class="company" id="ch-company"></div>
+          <div class="client-meta" id="ch-meta"></div>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <a class="back-btn" href="clients.html">← Back to Clients</a>
+          <button class="edit-client-btn" id="edit-client-btn">✎ Edit Client</button>
+          <button class="add-btn" id="generate-invoice-btn" style="background:var(--success)">📄 Generate Invoice</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="invoices">📄 Invoice History</button>
+        <button class="tab-btn" data-tab="contacts">📞 Contact Log</button>
+        <button class="tab-btn" data-tab="work">🔧 Work Log</button>
+        <button class="tab-btn" data-tab="projects">📁 Projects</button>
+      </div>
+
+      <!-- ── Invoice History tab ── -->
+      <div class="tab-panel active" id="tab-invoices">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Invoice History</h3>
+          </div>
+          <div id="invoices-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Amount</th>
+                  <th>Issued</th>
+                  <th>Status</th>
+                  <th>Paid Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoices-tbody"></tbody>
+            </table>
+            <div id="invoices-empty" class="empty-state" style="display:none">No invoices yet for this client.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Contact Log tab ── -->
+      <div class="tab-panel" id="tab-contacts">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Contact Log</h3>
+            <button class="add-btn" id="add-contact-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Add Entry
+            </button>
+          </div>
+          <div id="contacts-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Summary</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="contacts-tbody"></tbody>
+            </table>
+            <div id="contacts-empty" class="empty-state" style="display:none">No contact log entries yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Work Log tab ── -->
+      <div class="tab-panel" id="tab-work">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Work Log</h3>
+            <button class="add-btn" id="add-work-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Add Entry
+            </button>
+          </div>
+          <div id="work-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Hours</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="work-tbody"></tbody>
+            </table>
+            <div id="work-empty" class="empty-state" style="display:none">No work log entries yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Projects tab ── -->
+      <div class="tab-panel" id="tab-projects">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Projects</h3>
+            <button class="add-btn" id="add-project-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Add Project
+            </button>
+          </div>
+          <div id="projects-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="projects-tbody"></tbody>
+            </table>
+            <div id="projects-empty" class="empty-state" style="display:none">No projects yet for this client.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Log modal -->
+  <div class="modal-overlay" id="contact-modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h4 id="contact-modal-title">Add Contact Log Entry</h4>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="cf-type">Type</label>
+          <select id="cf-type">
+            <option value="note">Note</option>
+            <option value="call">Call</option>
+            <option value="email">Email</option>
+            <option value="meeting">Meeting</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cf-date">Date &amp; Time</label>
+          <input type="datetime-local" id="cf-date" />
+        </div>
+        <div class="form-group full">
+          <label for="cf-summary">Summary <span aria-hidden="true">*</span></label>
+          <textarea id="cf-summary" rows="4" placeholder="What happened / was discussed…"></textarea>
+        </div>
+      </div>
+      <div class="form-error" id="contact-form-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="contact-modal-cancel">Cancel</button>
+        <button type="button" class="btn-save" id="contact-modal-save">Save Entry</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Work Log modal -->
+  <div class="modal-overlay" id="work-modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h4 id="work-modal-title">Add Work Log Entry</h4>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="wf-hours">Hours</label>
+          <input type="number" id="wf-hours" min="0" step="0.25" placeholder="e.g. 2.5" />
+        </div>
+        <div class="form-group">
+          <label for="wf-date">Date</label>
+          <input type="date" id="wf-date" />
+        </div>
+        <div class="form-group full">
+          <label for="wf-description">Description <span aria-hidden="true">*</span></label>
+          <textarea id="wf-description" rows="4" placeholder="What work was done…"></textarea>
+        </div>
+      </div>
+      <div class="form-error" id="work-form-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="work-modal-cancel">Cancel</button>
+        <button type="button" class="btn-save" id="work-modal-save">Save Entry</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project modal -->
+  <div class="modal-overlay" id="project-modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h4 id="project-modal-title">Add Project</h4>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="pf-name">Project Name <span aria-hidden="true">*</span></label>
+          <input type="text" id="pf-name" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label for="pf-status">Status</label>
+          <select id="pf-status">
+            <option value="active">Active</option>
+            <option value="on-hold">On Hold</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pf-start">Start Date</label>
+          <input type="date" id="pf-start" />
+        </div>
+        <div class="form-group">
+          <label for="pf-end">End Date</label>
+          <input type="date" id="pf-end" />
+        </div>
+        <div class="form-group full">
+          <label for="pf-description">Description</label>
+          <textarea id="pf-description" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="form-error" id="project-form-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="project-modal-cancel">Cancel</button>
+        <button type="button" class="btn-save" id="project-modal-save">Save Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Preview modal -->
+  <div class="modal-overlay" id="invoice-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="invoice-modal-title">
+    <div class="modal invoice-modal">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h4 id="invoice-modal-title" style="margin:0">Invoice Preview</h4>
+        <button type="button" class="btn-cancel" id="invoice-modal-close" style="padding:.25rem .5rem;font-size:1rem" aria-label="Close">✕</button>
+      </div>
+      <div class="invoice-preview-container" id="invoice-preview-container">
+        <span class="invoice-preview-loading" id="invoice-preview-loading">Loading preview…</span>
+        <iframe id="invoice-preview-frame" title="Invoice Preview"></iframe>
+      </div>
+      <div id="invoice-compose-section" style="display:none">
+        <label for="invoice-email-body" style="display:block;font-weight:600;margin-bottom:.5rem">Email Message</label>
+        <textarea id="invoice-email-body" rows="10" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:.9rem;padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius);resize:vertical"></textarea>
+        <p style="font-size:.8rem;color:var(--text-muted);margin:.4rem 0 0">The invoice PDF will be attached automatically.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="invoice-modal-cancel">Cancel</button>
+        <button type="button" class="btn-cancel" id="invoice-compose-back-btn" style="display:none">← Back</button>
+        <button type="button" class="btn-save" id="invoice-download-btn">⬇ Save</button>
+        <button type="button" class="btn-send" id="invoice-send-btn">✉ Send</button>
+        <button type="button" class="btn-send" id="invoice-compose-send-btn" style="display:none">✉ Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem('admin_token');
+      if (!token) { window.location.replace('/admin/login.html'); return; }
+
+      // ── Parse client ID from URL ─────────────────────────────────────────
+      const params   = new URLSearchParams(window.location.search);
+      const clientId = parseInt(params.get('id'), 10);
+      if (!clientId) { window.location.replace('clients.html'); return; }
+
+      // ── Mobile sidebar ───────────────────────────────────────────────────
+      const hamburgerBtn = document.getElementById('hamburger-btn');
+      const sidebar      = document.getElementById('sidebar');
+      const backdrop     = document.getElementById('sidebar-backdrop');
+      hamburgerBtn.addEventListener('click', () => {
+        sidebar.classList.add('open');
+        backdrop.classList.add('open');
+        hamburgerBtn.setAttribute('aria-expanded', 'true');
+      });
+      backdrop.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('open');
+        hamburgerBtn.setAttribute('aria-expanded', 'false');
+      });
+      sidebar.querySelectorAll('.nav-item').forEach(el => {
+        el.addEventListener('click', () => {
+          sidebar.classList.remove('open');
+          backdrop.classList.remove('open');
+        });
+      });
+
+      // ── Auth helpers ─────────────────────────────────────────────────────
+      async function authFetch(url, options = {}) {
+        const res = await fetch(url, {
+          ...options,
+          headers: { ...(options.headers || {}), Authorization: 'Bearer ' + token },
+        });
+        if (res.status === 401) { signOut(); }
+        return res;
+      }
+      function signOut() {
+        localStorage.removeItem('admin_token');
+        window.location.replace('/admin/login.html');
+      }
+      document.getElementById('logout-btn').addEventListener('click', signOut);
+
+      authFetch('/api/auth/verify')
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+          document.getElementById('sidebar-email').textContent = data.email;
+          document.getElementById('topbar-email').textContent = data.email;
+        })
+        .catch(signOut);
+
+      // ── Helpers ───────────────────────────────────────────────────────────
+      function esc(str) {
+        return String(str)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+      function formatCurrency(val) {
+        if (val == null) return '<span class="muted">—</span>';
+        return '£' + Number(val).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      function formatDate(str) {
+        if (!str) return '—';
+        const s = str.slice(0, 10);
+        const [y, m, d] = s.split('-');
+        if (!y || !m || !d) return str;
+        return new Date(Number(y), Number(m) - 1, Number(d))
+          .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      function formatDateTime(str) {
+        if (!str) return '—';
+        const dt = new Date(str.replace(' ', 'T'));
+        if (isNaN(dt)) return str;
+        return dt.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      function todayStr() { return new Date().toISOString().slice(0, 10); }
+      function nowLocalStr() {
+        const n = new Date();
+        return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}T${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+      }
+
+      // ── Tabs ─────────────────────────────────────────────────────────────
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+      });
+
+      // ── Current client ────────────────────────────────────────────────────
+      let currentClient = null;
+
+      async function loadClient() {
+        const res = await authFetch(`/api/admin/clients/${clientId}`);
+        if (!res.ok) { alert('Client not found.'); window.location.replace('clients.html'); return; }
+        currentClient = await res.json();
+        renderClientHeader(currentClient);
+      }
+
+      function renderClientHeader(c) {
+        document.getElementById('topbar-title').textContent = c.name;
+        document.getElementById('ch-name').textContent = c.name;
+        document.getElementById('ch-company').textContent = c.company || '';
+        const meta = [];
+        if (c.email)  meta.push(`<span class="client-meta-item">📧 <strong>${esc(c.email)}</strong></span>`);
+        if (c.phone)  meta.push(`<span class="client-meta-item">📞 <strong>${esc(c.phone)}</strong></span>`);
+        if (c.contract_value != null) meta.push(`<span class="client-meta-item">💷 <strong>${formatCurrency(c.contract_value)}</strong> ${c.payment_schedule ? esc(c.payment_schedule) : ''}</span>`);
+        if (c.address) meta.push(`<span class="client-meta-item">📍 <strong>${esc(c.address.split('\n')[0])}</strong></span>`);
+        document.getElementById('ch-meta').innerHTML = meta.join('');
+      }
+
+      // ── Invoice History ───────────────────────────────────────────────────
+      async function loadInvoices() {
+        try {
+          const res = await authFetch(`/api/admin/clients/${clientId}/invoices`);
+          if (!res.ok) return;
+          const rows = await res.json();
+          renderInvoices(rows);
+        } catch { /* ignore */ }
+      }
+
+      function renderInvoices(rows) {
+        const tbody = document.getElementById('invoices-tbody');
+        const empty = document.getElementById('invoices-empty');
+        tbody.innerHTML = '';
+        if (!rows.length) { empty.style.display = ''; return; }
+        empty.style.display = 'none';
+        rows.forEach(inv => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${esc(inv.invoice_num)}</strong></td>
+            <td class="currency-cell">${formatCurrency(inv.amount)}</td>
+            <td class="date-cell">${formatDate(inv.issued_date)}</td>
+            <td>${inv.paid ? '<span class="badge badge-paid">✓ Paid</span>' : '<span class="badge badge-unpaid">Unpaid</span>'}</td>
+            <td class="date-cell">${inv.paid_date ? formatDate(inv.paid_date) : '<span class="muted">—</span>'}</td>
+            <td>
+              <button class="action-btn pay-btn" title="${inv.paid ? 'Mark as unpaid' : 'Mark as paid'}">${inv.paid ? '↩ Unpaid' : '✓ Mark Paid'}</button>
+              <button class="action-btn pdf-btn" title="Download PDF">📄 PDF</button>
+              <button class="action-btn del-btn" title="Delete">✕</button>
+            </td>
+          `;
+          tr.querySelector('.pay-btn').addEventListener('click', () => toggleInvoicePaid(inv.id));
+          tr.querySelector('.pdf-btn').addEventListener('click', () => downloadInvoicePdf());
+          tr.querySelector('.del-btn').addEventListener('click', () => {
+            if (confirm(`Delete invoice "${inv.invoice_num}"?`)) deleteInvoice(inv.id);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function toggleInvoicePaid(invId) {
+        const res = await authFetch(`/api/admin/clients/${clientId}/invoices/${invId}/paid`, { method: 'PATCH' });
+        if (!res.ok) { alert('Could not update invoice.'); return; }
+        loadInvoices();
+      }
+
+      async function deleteInvoice(invId) {
+        const res = await authFetch(`/api/admin/clients/${clientId}/invoices/${invId}`, { method: 'DELETE' });
+        if (!res.ok) { alert('Could not delete invoice.'); return; }
+        loadInvoices();
+      }
+
+      async function downloadInvoicePdf() {
+        const res = await authFetch(`/api/admin/clients/${clientId}/invoice`, { method: 'POST' });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Could not generate PDF.'); return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        const cd  = res.headers.get('Content-Disposition') || '';
+        const m   = cd.match(/filename="?([^"]+)"?/);
+        a.download = m ? m[1] : 'invoice.pdf';
+        a.href = url; a.click();
+        URL.revokeObjectURL(url);
+        loadInvoices();
+      }
+
+      // ── Invoice generation (preview modal) ─────────────────────────────
+      let currentPreviewBlobUrl = null;
+      const invoiceOverlay = document.getElementById('invoice-modal-overlay');
+
+      document.getElementById('generate-invoice-btn').addEventListener('click', () => {
+        if (!currentClient) return;
+        openInvoiceModal(currentClient);
+      });
+
+      function closeInvoiceModal() {
+        invoiceOverlay.classList.remove('open');
+        if (currentPreviewBlobUrl) { URL.revokeObjectURL(currentPreviewBlobUrl); currentPreviewBlobUrl = null; }
+        const frame = document.getElementById('invoice-preview-frame');
+        frame.src = ''; frame.style.display = 'none';
+        document.getElementById('invoice-preview-loading').style.display = '';
+        showInvoicePreviewPane();
+      }
+      function showInvoicePreviewPane() {
+        document.getElementById('invoice-preview-container').style.display = '';
+        document.getElementById('invoice-compose-section').style.display = 'none';
+        document.getElementById('invoice-modal-title').textContent = 'Invoice Preview';
+        document.getElementById('invoice-modal-cancel').style.display = '';
+        document.getElementById('invoice-download-btn').style.display = '';
+        document.getElementById('invoice-send-btn').style.display = '';
+        document.getElementById('invoice-compose-back-btn').style.display = 'none';
+        document.getElementById('invoice-compose-send-btn').style.display = 'none';
+      }
+      function showInvoiceComposePane() {
+        const today = new Date();
+        const ts    = today.toISOString().slice(0, 10).replace(/-/g, '');
+        const num   = `INV-${ts}-${String(clientId).padStart(4, '0')}`;
+        const name  = (currentClient && (currentClient.company || currentClient.name)) || 'Client';
+        const body  = `Dear ${name},\n\nPlease find your invoice ${num} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`;
+        const ta    = document.getElementById('invoice-email-body');
+        if (!ta.value.trim()) ta.value = body;
+        document.getElementById('invoice-preview-container').style.display = 'none';
+        document.getElementById('invoice-compose-section').style.display = '';
+        document.getElementById('invoice-modal-title').textContent = 'Compose Email';
+        document.getElementById('invoice-modal-cancel').style.display = 'none';
+        document.getElementById('invoice-download-btn').style.display = 'none';
+        document.getElementById('invoice-send-btn').style.display = 'none';
+        document.getElementById('invoice-compose-back-btn').style.display = '';
+        document.getElementById('invoice-compose-send-btn').style.display = '';
+      }
+      async function openInvoiceModal(client) {
+        document.getElementById('invoice-email-body').value = '';
+        invoiceOverlay.classList.add('open');
+        showInvoicePreviewPane();
+        const loading = document.getElementById('invoice-preview-loading');
+        const frame   = document.getElementById('invoice-preview-frame');
+        loading.textContent = 'Loading preview…'; loading.style.display = '';
+        frame.style.display = 'none';
+        document.getElementById('invoice-download-btn').disabled = false;
+        document.getElementById('invoice-download-btn').textContent = '⬇ Save';
+        document.getElementById('invoice-send-btn').disabled = false;
+        document.getElementById('invoice-send-btn').textContent = '✉ Send';
+        try {
+          const res = await authFetch(`/api/admin/clients/${client.id}/invoice/preview`);
+          if (!res.ok) { const d = await res.json().catch(() => ({})); loading.textContent = d.error || 'Could not generate preview.'; return; }
+          const blob = await res.blob();
+          currentPreviewBlobUrl = URL.createObjectURL(blob);
+          frame.src = currentPreviewBlobUrl;
+          frame.style.display = 'block';
+          loading.style.display = 'none';
+        } catch { loading.textContent = 'Network error generating preview.'; }
+      }
+      document.getElementById('invoice-modal-close').addEventListener('click', closeInvoiceModal);
+      document.getElementById('invoice-modal-cancel').addEventListener('click', closeInvoiceModal);
+      invoiceOverlay.addEventListener('click', e => { if (e.target === invoiceOverlay) closeInvoiceModal(); });
+      document.getElementById('invoice-download-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('invoice-download-btn');
+        btn.disabled = true; btn.textContent = '…';
+        await downloadInvoicePdf();
+        btn.disabled = false; btn.textContent = '⬇ Save';
+        closeInvoiceModal();
+      });
+      document.getElementById('invoice-send-btn').addEventListener('click', () => showInvoiceComposePane());
+      document.getElementById('invoice-compose-back-btn').addEventListener('click', showInvoicePreviewPane);
+      document.getElementById('invoice-compose-send-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('invoice-compose-send-btn');
+        btn.disabled = true; btn.textContent = '…';
+        const emailBody = document.getElementById('invoice-email-body').value;
+        try {
+          const res = await authFetch(`/api/admin/clients/${clientId}/invoice/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email_body: emailBody }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) { alert(data.error || 'Could not send invoice.'); return; }
+          alert(`Invoice ${data.invoiceNum} sent to ${data.sentTo}.`);
+          loadInvoices();
+          closeInvoiceModal();
+        } catch { alert('Network error sending invoice.'); }
+        finally { btn.disabled = false; btn.textContent = '✉ Send'; }
+      });
+
+      // ── Contact Log ───────────────────────────────────────────────────────
+      let editingContactId = null;
+      const contactOverlay = document.getElementById('contact-modal-overlay');
+
+      async function loadContacts() {
+        try {
+          const res = await authFetch(`/api/admin/clients/${clientId}/contact-log`);
+          if (!res.ok) return;
+          renderContacts(await res.json());
+        } catch { /* ignore */ }
+      }
+
+      function renderContacts(rows) {
+        const tbody = document.getElementById('contacts-tbody');
+        const empty = document.getElementById('contacts-empty');
+        tbody.innerHTML = '';
+        if (!rows.length) { empty.style.display = ''; return; }
+        empty.style.display = 'none';
+        rows.forEach(entry => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="type-badge type-${esc(entry.type)}">${esc(entry.type)}</span></td>
+            <td class="pre-wrap">${esc(entry.summary)}</td>
+            <td class="date-cell">${formatDateTime(entry.occurred_at)}</td>
+            <td>
+              <button class="action-btn edit-btn">✎ Edit</button>
+              <button class="action-btn del-btn">✕</button>
+            </td>
+          `;
+          tr.querySelector('.edit-btn').addEventListener('click', () => openContactModal(entry));
+          tr.querySelector('.del-btn').addEventListener('click', () => {
+            if (confirm('Delete this contact log entry?')) deleteContact(entry.id);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      function openContactModal(entry) {
+        editingContactId = entry ? entry.id : null;
+        document.getElementById('contact-modal-title').textContent = entry ? 'Edit Contact Entry' : 'Add Contact Log Entry';
+        document.getElementById('cf-type').value    = entry ? entry.type : 'note';
+        document.getElementById('cf-summary').value = entry ? entry.summary : '';
+        const occAt = entry ? entry.occurred_at : nowLocalStr();
+        document.getElementById('cf-date').value = occAt.slice(0, 16);
+        document.getElementById('contact-form-error').classList.remove('visible');
+        contactOverlay.classList.add('open');
+        document.getElementById('cf-summary').focus();
+      }
+
+      document.getElementById('add-contact-btn').addEventListener('click', () => openContactModal(null));
+      document.getElementById('contact-modal-cancel').addEventListener('click', () => { contactOverlay.classList.remove('open'); editingContactId = null; });
+      contactOverlay.addEventListener('click', e => { if (e.target === contactOverlay) { contactOverlay.classList.remove('open'); editingContactId = null; } });
+
+      document.getElementById('contact-modal-save').addEventListener('click', async () => {
+        const summary = document.getElementById('cf-summary').value.trim();
+        const errEl   = document.getElementById('contact-form-error');
+        if (!summary) { errEl.textContent = 'Summary is required.'; errEl.classList.add('visible'); return; }
+        errEl.classList.remove('visible');
+
+        const payload = {
+          type:        document.getElementById('cf-type').value,
+          summary,
+          occurred_at: document.getElementById('cf-date').value.replace('T', ' ') || undefined,
+        };
+        const btn = document.getElementById('contact-modal-save');
+        btn.disabled = true;
+        try {
+          const url    = editingContactId ? `/api/admin/clients/${clientId}/contact-log/${editingContactId}` : `/api/admin/clients/${clientId}/contact-log`;
+          const method = editingContactId ? 'PUT' : 'POST';
+          const res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          if (!res.ok) { const d = await res.json().catch(() => ({})); errEl.textContent = d.error || 'An error occurred.'; errEl.classList.add('visible'); return; }
+          contactOverlay.classList.remove('open');
+          editingContactId = null;
+          loadContacts();
+        } catch { errEl.textContent = 'Network error.'; errEl.classList.add('visible'); }
+        finally { btn.disabled = false; }
+      });
+
+      async function deleteContact(id) {
+        const res = await authFetch(`/api/admin/clients/${clientId}/contact-log/${id}`, { method: 'DELETE' });
+        if (!res.ok) { alert('Could not delete entry.'); return; }
+        loadContacts();
+      }
+
+      // ── Work Log ──────────────────────────────────────────────────────────
+      let editingWorkId = null;
+      const workOverlay = document.getElementById('work-modal-overlay');
+
+      async function loadWork() {
+        try {
+          const res = await authFetch(`/api/admin/clients/${clientId}/work-log`);
+          if (!res.ok) return;
+          renderWork(await res.json());
+        } catch { /* ignore */ }
+      }
+
+      function renderWork(rows) {
+        const tbody = document.getElementById('work-tbody');
+        const empty = document.getElementById('work-empty');
+        tbody.innerHTML = '';
+        if (!rows.length) { empty.style.display = ''; return; }
+        empty.style.display = 'none';
+        rows.forEach(entry => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="pre-wrap">${esc(entry.description)}</td>
+            <td>${entry.hours != null ? entry.hours : '<span class="muted">—</span>'}</td>
+            <td class="date-cell">${formatDate(entry.occurred_at)}</td>
+            <td>
+              <button class="action-btn edit-btn">✎ Edit</button>
+              <button class="action-btn del-btn">✕</button>
+            </td>
+          `;
+          tr.querySelector('.edit-btn').addEventListener('click', () => openWorkModal(entry));
+          tr.querySelector('.del-btn').addEventListener('click', () => {
+            if (confirm('Delete this work log entry?')) deleteWork(entry.id);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      function openWorkModal(entry) {
+        editingWorkId = entry ? entry.id : null;
+        document.getElementById('work-modal-title').textContent = entry ? 'Edit Work Entry' : 'Add Work Log Entry';
+        document.getElementById('wf-description').value = entry ? entry.description : '';
+        document.getElementById('wf-hours').value       = entry && entry.hours != null ? entry.hours : '';
+        document.getElementById('wf-date').value        = entry ? entry.occurred_at.slice(0, 10) : todayStr();
+        document.getElementById('work-form-error').classList.remove('visible');
+        workOverlay.classList.add('open');
+        document.getElementById('wf-description').focus();
+      }
+
+      document.getElementById('add-work-btn').addEventListener('click', () => openWorkModal(null));
+      document.getElementById('work-modal-cancel').addEventListener('click', () => { workOverlay.classList.remove('open'); editingWorkId = null; });
+      workOverlay.addEventListener('click', e => { if (e.target === workOverlay) { workOverlay.classList.remove('open'); editingWorkId = null; } });
+
+      document.getElementById('work-modal-save').addEventListener('click', async () => {
+        const description = document.getElementById('wf-description').value.trim();
+        const errEl = document.getElementById('work-form-error');
+        if (!description) { errEl.textContent = 'Description is required.'; errEl.classList.add('visible'); return; }
+        errEl.classList.remove('visible');
+
+        const hoursVal = document.getElementById('wf-hours').value;
+        const payload  = {
+          description,
+          hours:       hoursVal !== '' ? parseFloat(hoursVal) : null,
+          occurred_at: document.getElementById('wf-date').value || undefined,
+        };
+        const btn = document.getElementById('work-modal-save');
+        btn.disabled = true;
+        try {
+          const url    = editingWorkId ? `/api/admin/clients/${clientId}/work-log/${editingWorkId}` : `/api/admin/clients/${clientId}/work-log`;
+          const method = editingWorkId ? 'PUT' : 'POST';
+          const res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          if (!res.ok) { const d = await res.json().catch(() => ({})); errEl.textContent = d.error || 'An error occurred.'; errEl.classList.add('visible'); return; }
+          workOverlay.classList.remove('open');
+          editingWorkId = null;
+          loadWork();
+        } catch { errEl.textContent = 'Network error.'; errEl.classList.add('visible'); }
+        finally { btn.disabled = false; }
+      });
+
+      async function deleteWork(id) {
+        const res = await authFetch(`/api/admin/clients/${clientId}/work-log/${id}`, { method: 'DELETE' });
+        if (!res.ok) { alert('Could not delete entry.'); return; }
+        loadWork();
+      }
+
+      // ── Projects ──────────────────────────────────────────────────────────
+      let editingProjectId = null;
+      const projectOverlay = document.getElementById('project-modal-overlay');
+
+      async function loadProjects() {
+        try {
+          const res = await authFetch(`/api/admin/clients/${clientId}/projects`);
+          if (!res.ok) return;
+          renderProjects(await res.json());
+        } catch { /* ignore */ }
+      }
+
+      function renderProjects(rows) {
+        const tbody = document.getElementById('projects-tbody');
+        const empty = document.getElementById('projects-empty');
+        tbody.innerHTML = '';
+        if (!rows.length) { empty.style.display = ''; return; }
+        empty.style.display = 'none';
+        rows.forEach(proj => {
+          const statusMap = { active: 'badge-active', completed: 'badge-completed', 'on-hold': 'badge-on-hold' };
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${esc(proj.name)}</strong></td>
+            <td>${proj.description ? esc(proj.description) : '<span class="muted">—</span>'}</td>
+            <td><span class="badge ${statusMap[proj.status] || 'badge-active'}">${esc(proj.status)}</span></td>
+            <td class="date-cell">${proj.start_date ? formatDate(proj.start_date) : '<span class="muted">—</span>'}</td>
+            <td class="date-cell">${proj.end_date   ? formatDate(proj.end_date)   : '<span class="muted">—</span>'}</td>
+            <td>
+              <button class="action-btn edit-btn">✎ Edit</button>
+              <button class="action-btn del-btn">✕</button>
+            </td>
+          `;
+          tr.querySelector('.edit-btn').addEventListener('click', () => openProjectModal(proj));
+          tr.querySelector('.del-btn').addEventListener('click', () => {
+            if (confirm(`Delete project "${proj.name}"?`)) deleteProject(proj.id);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      function openProjectModal(proj) {
+        editingProjectId = proj ? proj.id : null;
+        document.getElementById('project-modal-title').textContent = proj ? 'Edit Project' : 'Add Project';
+        document.getElementById('pf-name').value        = proj ? proj.name : '';
+        document.getElementById('pf-status').value      = proj ? proj.status : 'active';
+        document.getElementById('pf-start').value       = proj ? (proj.start_date || '') : '';
+        document.getElementById('pf-end').value         = proj ? (proj.end_date || '') : '';
+        document.getElementById('pf-description').value = proj ? (proj.description || '') : '';
+        document.getElementById('project-form-error').classList.remove('visible');
+        projectOverlay.classList.add('open');
+        document.getElementById('pf-name').focus();
+      }
+
+      document.getElementById('add-project-btn').addEventListener('click', () => openProjectModal(null));
+      document.getElementById('project-modal-cancel').addEventListener('click', () => { projectOverlay.classList.remove('open'); editingProjectId = null; });
+      projectOverlay.addEventListener('click', e => { if (e.target === projectOverlay) { projectOverlay.classList.remove('open'); editingProjectId = null; } });
+
+      document.getElementById('project-modal-save').addEventListener('click', async () => {
+        const name  = document.getElementById('pf-name').value.trim();
+        const errEl = document.getElementById('project-form-error');
+        if (!name) { errEl.textContent = 'Name is required.'; errEl.classList.add('visible'); return; }
+        errEl.classList.remove('visible');
+
+        const payload = {
+          name,
+          status:      document.getElementById('pf-status').value,
+          start_date:  document.getElementById('pf-start').value || null,
+          end_date:    document.getElementById('pf-end').value   || null,
+          description: document.getElementById('pf-description').value.trim() || null,
+        };
+        const btn = document.getElementById('project-modal-save');
+        btn.disabled = true;
+        try {
+          const url    = editingProjectId ? `/api/admin/clients/${clientId}/projects/${editingProjectId}` : `/api/admin/clients/${clientId}/projects`;
+          const method = editingProjectId ? 'PUT' : 'POST';
+          const res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          if (!res.ok) { const d = await res.json().catch(() => ({})); errEl.textContent = d.error || 'An error occurred.'; errEl.classList.add('visible'); return; }
+          projectOverlay.classList.remove('open');
+          editingProjectId = null;
+          loadProjects();
+        } catch { errEl.textContent = 'Network error.'; errEl.classList.add('visible'); }
+        finally { btn.disabled = false; }
+      });
+
+      async function deleteProject(id) {
+        const res = await authFetch(`/api/admin/clients/${clientId}/projects/${id}`, { method: 'DELETE' });
+        if (!res.ok) { alert('Could not delete project.'); return; }
+        loadProjects();
+      }
+
+      // ── Init ──────────────────────────────────────────────────────────────
+      loadClient().then(() => {
+        loadInvoices();
+        loadContacts();
+        loadWork();
+        loadProjects();
+      });
+    })();
+  </script>
+</body>
+</html>
