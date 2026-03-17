@@ -574,11 +574,13 @@
                 <td>
                   <button class="action-btn edit-btn" data-id="${row.id}">✎ Edit</button>
                   <button class="action-btn inv-btn"  data-id="${row.id}" ${row.contract_value == null && (!row.service_ids || row.service_ids.length === 0) ? 'disabled title="Set a contract value or select services first"' : ''}>⬇ Invoice</button>
+                  <button class="action-btn send-btn" data-id="${row.id}" ${row.contract_value == null && (!row.service_ids || row.service_ids.length === 0) ? 'disabled title="Set a contract value or select services first"' : ''}>✉ Send</button>
                   <button class="action-btn del-btn"  data-id="${row.id}">✕</button>
                 </td>
               `;
               tr.querySelector('.edit-btn').addEventListener('click', () => openModal(row));
               tr.querySelector('.inv-btn').addEventListener('click', () => generateInvoice(row.id, tr.querySelector('.inv-btn')));
+              tr.querySelector('.send-btn').addEventListener('click', () => sendInvoice(row.id, tr.querySelector('.send-btn')));
               tr.querySelector('.del-btn').addEventListener('click', () => {
                 if (confirm(`Delete client "${row.name}"?`)) deleteClient(row.id);
               });
@@ -635,6 +637,27 @@
         } finally {
           btn.disabled = false;
           btn.textContent = '⬇ Invoice';
+        }
+      }
+
+      async function sendInvoice(id, btn) {
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+          const res = await authFetch(`/api/admin/clients/${id}/invoice/send`, { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert(data.error || 'Could not send invoice.');
+            return;
+          }
+          alert(`Invoice ${data.invoiceNum} sent to ${data.sentTo}.`);
+          // Refresh table so Last Invoice date updates
+          loadClients(currentPage);
+        } catch {
+          alert('Network error sending invoice.');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '✉ Send';
         }
       }
 
