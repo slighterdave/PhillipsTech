@@ -484,7 +484,7 @@ function drawInvoice(doc, client, selectedServices, siteSettings, invoiceNum, to
      .text('Thank you for your business. Please make payment within 14 days of invoice date.',
            50, thankY, { align: 'center', width: doc.page.width - 100 });
   doc.fontSize(8).fillColor(MUTED).font('Helvetica')
-     .text('PhillipsTech  •  info@phillipstech.co.uk',
+     .text('PhillipsTech  •  dave@phillipstech.info',
            50, brandY, { align: 'center', width: doc.page.width - 100 });
 }
 
