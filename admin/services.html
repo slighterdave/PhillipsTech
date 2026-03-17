@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Clients – PhillipsTech Admin</title>
+  <title>Services – PhillipsTech Admin</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -173,8 +173,8 @@
     tr:hover td { background: #f8f9fa; }
 
     .currency-cell { white-space: nowrap; }
-    .date-cell { white-space: nowrap; color: var(--text-muted); font-size: .8rem; }
     .muted { color: var(--text-muted); }
+    .desc-cell { color: var(--text-muted); font-size: .8rem; max-width: 320px; }
 
     .action-btn {
       background: none;
@@ -188,9 +188,6 @@
     }
     .action-btn.edit-btn  { color: var(--primary); border-color: var(--primary); }
     .action-btn.edit-btn:hover  { background: var(--primary); color: #fff; }
-    .action-btn.inv-btn   { color: var(--success); border-color: var(--success); }
-    .action-btn.inv-btn:hover   { background: var(--success); color: #fff; }
-    .action-btn.inv-btn:disabled { opacity: .5; cursor: not-allowed; }
     .action-btn.del-btn   { color: var(--danger); border-color: var(--danger); }
     .action-btn.del-btn:hover   { background: var(--danger); color: #fff; }
 
@@ -199,27 +196,6 @@
       padding: 3rem;
       color: var(--text-muted);
     }
-
-    .pagination {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: .5rem;
-      padding: .75rem 1rem;
-      border-top: 1px solid var(--border);
-      font-size: .875rem;
-    }
-    .page-btn {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: .25rem .6rem;
-      cursor: pointer;
-      transition: background .15s;
-    }
-    .page-btn:hover:not(:disabled) { background: var(--bg); }
-    .page-btn:disabled { opacity: .4; cursor: not-allowed; }
-    .page-info { color: var(--text-muted); }
 
     /* ── Modal ── */
     .modal-overlay {
@@ -236,7 +212,7 @@
       background: var(--white);
       border-radius: var(--radius);
       box-shadow: 0 8px 32px rgba(0,0,0,.18);
-      max-width: 560px;
+      max-width: 480px;
       width: 100%;
       margin: 1rem;
       padding: 1.5rem;
@@ -245,16 +221,10 @@
     }
     .modal h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 1.25rem; }
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .75rem 1rem;
-    }
-    .form-group { display: flex; flex-direction: column; gap: .3rem; }
-    .form-group.full { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .75rem; }
+    .form-group:last-of-type { margin-bottom: 0; }
     .form-group label { font-size: .8rem; font-weight: 600; color: var(--text-muted); }
     .form-group input,
-    .form-group select,
     .form-group textarea {
       border: 1px solid var(--border);
       border-radius: 4px;
@@ -265,13 +235,13 @@
       transition: border-color .15s;
     }
     .form-group input:focus,
-    .form-group select:focus,
     .form-group textarea:focus {
       outline: none;
       border-color: var(--primary);
     }
     .form-group textarea { resize: vertical; min-height: 72px; }
     .form-group .field-error { color: var(--danger); font-size: .78rem; }
+    .form-hint { font-size: .78rem; color: var(--text-muted); margin-top: .2rem; }
 
     .modal-actions {
       display: flex;
@@ -313,43 +283,9 @@
     }
     .form-error.visible { display: block; }
 
-    /* ── Services checklist ── */
-    .services-checklist {
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: .5rem .75rem;
-      min-height: 42px;
-      display: flex;
-      flex-direction: column;
-      gap: .35rem;
-    }
-    .service-check-item {
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-      font-size: .875rem;
-      cursor: pointer;
-    }
-    .service-check-item input[type="checkbox"] {
-      width: auto;
-      cursor: pointer;
-    }
-    .service-check-item .svc-price {
-      margin-left: auto;
-      color: var(--text-muted);
-      font-size: .8rem;
-      white-space: nowrap;
-    }
-    .services-empty {
-      color: var(--text-muted);
-      font-size: .8rem;
-      font-style: italic;
-    }
-
     @media (max-width: 640px) {
       .sidebar { display: none; }
       .main { margin-left: 0; }
-      .form-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -362,11 +298,11 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
         Dashboard
       </a>
-      <a class="nav-item active" href="clients.html">
+      <a class="nav-item" href="clients.html">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
         Clients
       </a>
-      <a class="nav-item" href="services.html">
+      <a class="nav-item active" href="services.html">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z"/></svg>
         Services
       </a>
@@ -385,7 +321,7 @@
   <!-- Main area -->
   <div class="main">
     <div class="topbar">
-      <h2>Client Management</h2>
+      <h2>Services</h2>
       <div class="user-pill">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
         <strong id="topbar-email">—</strong>
@@ -394,112 +330,61 @@
 
     <div class="content">
       <div class="toolbar">
-        <span id="client-count" style="font-size:.875rem;color:var(--text-muted)"></span>
-        <button class="add-btn" id="add-client-btn">
+        <span id="service-count" style="font-size:.875rem;color:var(--text-muted)"></span>
+        <button class="add-btn" id="add-service-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Add Client
+          Add Service
         </button>
       </div>
 
       <div class="section-card">
         <div class="section-header">
-          <h3>All Clients</h3>
+          <h3>All Services</h3>
         </div>
 
         <div id="table-wrap">
-          <table id="clients-table">
+          <table id="services-table">
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Company</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Contract Value</th>
-                <th>Payment Schedule</th>
-                <th>Last Invoice</th>
+                <th>Description</th>
+                <th>Unit Price</th>
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="clients-tbody"></tbody>
+            <tbody id="services-tbody"></tbody>
           </table>
           <div id="empty-state" class="empty-state" style="display:none">
-            No clients yet. Click <strong>Add Client</strong> to get started.
-          </div>
-          <div class="pagination" id="pagination" style="display:none">
-            <button class="page-btn" id="prev-btn" disabled>← Prev</button>
-            <span class="page-info" id="page-info"></span>
-            <button class="page-btn" id="next-btn">Next →</button>
+            No services yet. Click <strong>Add Service</strong> to get started.
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Add / Edit Client modal -->
+  <!-- Add / Edit Service modal -->
   <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal">
-      <h4 id="modal-title">Add Client</h4>
-      <form id="client-form" novalidate>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="f-name">Name <span aria-hidden="true">*</span></label>
-            <input type="text" id="f-name" name="name" required autocomplete="off" />
-            <span class="field-error" id="err-name"></span>
-          </div>
-          <div class="form-group">
-            <label for="f-company">Company</label>
-            <input type="text" id="f-company" name="company" autocomplete="off" />
-          </div>
-          <div class="form-group">
-            <label for="f-email">Email <span aria-hidden="true">*</span></label>
-            <input type="email" id="f-email" name="email" required autocomplete="off" />
-            <span class="field-error" id="err-email"></span>
-          </div>
-          <div class="form-group">
-            <label for="f-phone">Phone</label>
-            <input type="tel" id="f-phone" name="phone" autocomplete="off" />
-          </div>
-          <div class="form-group">
-            <label for="f-contract-value">Contract Value (£)</label>
-            <input type="number" id="f-contract-value" name="contract_value" min="0" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label for="f-payment-schedule">Payment Schedule</label>
-            <select id="f-payment-schedule" name="payment_schedule">
-              <option value="">— Select —</option>
-              <option value="Weekly">Weekly</option>
-              <option value="Monthly">Monthly</option>
-              <option value="Quarterly">Quarterly</option>
-              <option value="Bi-annually">Bi-annually</option>
-              <option value="Annually">Annually</option>
-              <option value="On completion">On completion</option>
-              <option value="Custom">Custom</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="f-last-invoice">Last Invoice Date</label>
-            <input type="date" id="f-last-invoice" name="last_invoice_date" />
-          </div>
-          <div class="form-group full">
-            <label for="f-address">Address</label>
-            <textarea id="f-address" name="address" rows="3" placeholder="Street&#10;City&#10;Postcode"></textarea>
-          </div>
-          <div class="form-group full">
-            <label for="f-notes">Notes</label>
-            <textarea id="f-notes" name="notes" rows="3"></textarea>
-          </div>
-          <div class="form-group full">
-            <label>Services</label>
-            <div id="services-checklist" class="services-checklist">
-              <span class="services-empty">Loading services…</span>
-            </div>
-            <span style="font-size:.78rem;color:var(--text-muted);margin-top:.25rem;display:block">Select the services that apply to this client. These will appear as line items on invoices.</span>
-          </div>
+      <h4 id="modal-title">Add Service</h4>
+      <form id="service-form" novalidate>
+        <div class="form-group">
+          <label for="f-name">Name <span aria-hidden="true">*</span></label>
+          <input type="text" id="f-name" name="name" required autocomplete="off" />
+          <span class="field-error" id="err-name"></span>
+        </div>
+        <div class="form-group">
+          <label for="f-description">Description</label>
+          <textarea id="f-description" name="description" rows="3" placeholder="Brief description of this service…"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="f-unit-price">Unit Price (£)</label>
+          <input type="number" id="f-unit-price" name="unit_price" min="0" step="0.01" placeholder="0.00" />
+          <p class="form-hint">The price charged per invoice for this service.</p>
         </div>
         <div class="form-error" id="form-error"></div>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" id="modal-cancel">Cancel</button>
-          <button type="submit" class="btn-save" id="modal-save">Save Client</button>
+          <button type="submit" class="btn-save" id="modal-save">Save Service</button>
         </div>
       </form>
     </div>
@@ -510,10 +395,7 @@
       const token = localStorage.getItem('admin_token');
       if (!token) { window.location.replace('/admin/login.html'); return; }
 
-      let currentPage = 1;
-      const limit = 20;
       let editingId = null;
-      let allServices = [];  // cache of available services
 
       // ── Auth helpers ─────────────────────────────────────────────────────
       async function authFetch(url, options = {}) {
@@ -541,156 +423,72 @@
         })
         .catch(signOut);
 
-      // ── Load clients ─────────────────────────────────────────────────────
-      function loadClients(page) {
-        authFetch(`/api/admin/clients?page=${page}&limit=${limit}`)
+      // ── Load services ─────────────────────────────────────────────────────
+      function loadServices() {
+        authFetch('/api/admin/services')
           .then(r => r.json())
           .then(data => {
-            const tbody = document.getElementById('clients-tbody');
+            const tbody = document.getElementById('services-tbody');
             const empty = document.getElementById('empty-state');
-            const pagination = document.getElementById('pagination');
             tbody.innerHTML = '';
 
-            document.getElementById('client-count').textContent =
-              data.total === 1 ? '1 client' : `${data.total} clients`;
+            document.getElementById('service-count').textContent =
+              data.length === 1 ? '1 service' : `${data.length} services`;
 
-            if (!data.data || data.data.length === 0) {
+            if (!data || data.length === 0) {
               empty.style.display = '';
-              pagination.style.display = 'none';
               return;
             }
             empty.style.display = 'none';
 
-            data.data.forEach(row => {
+            data.forEach(row => {
               const tr = document.createElement('tr');
               tr.innerHTML = `
-                <td>${esc(row.name)}</td>
-                <td>${row.company ? esc(row.company) : '<span class="muted">—</span>'}</td>
-                <td><a href="mailto:${esc(row.email)}">${esc(row.email)}</a></td>
-                <td>${row.phone ? esc(row.phone) : '<span class="muted">—</span>'}</td>
-                <td class="currency-cell">${formatCurrency(row.contract_value)}</td>
-                <td>${row.payment_schedule ? esc(row.payment_schedule) : '<span class="muted">—</span>'}</td>
-                <td class="date-cell">${formatDate(row.last_invoice_date)}</td>
+                <td><strong>${esc(row.name)}</strong></td>
+                <td class="desc-cell">${row.description ? esc(row.description) : '<span class="muted">—</span>'}</td>
+                <td class="currency-cell">${formatCurrency(row.unit_price)}</td>
                 <td>
                   <button class="action-btn edit-btn" data-id="${row.id}">✎ Edit</button>
-                  <button class="action-btn inv-btn"  data-id="${row.id}" ${row.contract_value == null && (!row.service_ids || row.service_ids.length === 0) ? 'disabled title="Set a contract value or select services first"' : ''}>⬇ Invoice</button>
                   <button class="action-btn del-btn"  data-id="${row.id}">✕</button>
                 </td>
               `;
               tr.querySelector('.edit-btn').addEventListener('click', () => openModal(row));
-              tr.querySelector('.inv-btn').addEventListener('click', () => generateInvoice(row.id, tr.querySelector('.inv-btn')));
               tr.querySelector('.del-btn').addEventListener('click', () => {
-                if (confirm(`Delete client "${row.name}"?`)) deleteClient(row.id);
+                if (confirm(`Delete service "${row.name}"?`)) deleteService(row.id);
               });
               tbody.appendChild(tr);
             });
-
-            // Pagination
-            const totalPages = Math.ceil(data.total / limit);
-            if (totalPages > 1) {
-              pagination.style.display = '';
-              document.getElementById('page-info').textContent = `Page ${page} of ${totalPages}`;
-              document.getElementById('prev-btn').disabled = page <= 1;
-              document.getElementById('next-btn').disabled = page >= totalPages;
-              currentPage = page;
-            } else {
-              pagination.style.display = 'none';
-            }
           });
       }
 
-      document.getElementById('prev-btn').addEventListener('click', () => loadClients(currentPage - 1));
-      document.getElementById('next-btn').addEventListener('click', () => loadClients(currentPage + 1));
-
-      function deleteClient(id) {
-        authFetch(`/api/admin/clients/${id}`, { method: 'DELETE' })
+      function deleteService(id) {
+        authFetch(`/api/admin/services/${id}`, { method: 'DELETE' })
           .then(r => r.ok ? r.json() : Promise.reject())
-          .then(() => loadClients(currentPage))
-          .catch(() => alert('Could not delete client.'));
-      }
-
-      async function generateInvoice(id, btn) {
-        btn.disabled = true;
-        btn.textContent = '…';
-        try {
-          const res = await authFetch(`/api/admin/clients/${id}/invoice`, { method: 'POST' });
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            alert(data.error || 'Could not generate invoice.');
-            return;
-          }
-          const blob = await res.blob();
-          const url  = URL.createObjectURL(blob);
-          const a    = document.createElement('a');
-          const cd   = res.headers.get('Content-Disposition') || '';
-          const match = cd.match(/filename="?([^"]+)"?/);
-          a.download = match ? match[1] : 'invoice.pdf';
-          a.href = url;
-          a.click();
-          URL.revokeObjectURL(url);
-          // Refresh table so Last Invoice date updates
-          loadClients(currentPage);
-        } catch {
-          alert('Network error generating invoice.');
-        } finally {
-          btn.disabled = false;
-          btn.textContent = '⬇ Invoice';
-        }
+          .then(() => loadServices())
+          .catch(() => alert('Could not delete service.'));
       }
 
       // ── Modal helpers ─────────────────────────────────────────────────────
       const overlay = document.getElementById('modal-overlay');
-      const form = document.getElementById('client-form');
+      const form = document.getElementById('service-form');
       const formError = document.getElementById('form-error');
 
-      function openModal(client) {
-        editingId = client ? client.id : null;
-        document.getElementById('modal-title').textContent = client ? 'Edit Client' : 'Add Client';
-        document.getElementById('modal-save').textContent  = client ? 'Save Changes' : 'Save Client';
+      function openModal(service) {
+        editingId = service ? service.id : null;
+        document.getElementById('modal-title').textContent = service ? 'Edit Service' : 'Add Service';
+        document.getElementById('modal-save').textContent  = service ? 'Save Changes' : 'Save Service';
 
         form.reset();
         clearErrors();
 
-        if (client) {
-          document.getElementById('f-name').value             = client.name || '';
-          document.getElementById('f-company').value          = client.company || '';
-          document.getElementById('f-email').value            = client.email || '';
-          document.getElementById('f-phone').value            = client.phone || '';
-          document.getElementById('f-contract-value').value   = client.contract_value != null ? client.contract_value : '';
-          document.getElementById('f-payment-schedule').value = client.payment_schedule || '';
-          document.getElementById('f-last-invoice').value     = client.last_invoice_date || '';
-          document.getElementById('f-address').value          = client.address || '';
-          document.getElementById('f-notes').value            = client.notes || '';
+        if (service) {
+          document.getElementById('f-name').value        = service.name || '';
+          document.getElementById('f-description').value = service.description || '';
+          document.getElementById('f-unit-price').value  = service.unit_price != null ? service.unit_price : '';
         }
-
-        // Render services checklist
-        renderServicesChecklist(client ? (client.service_ids || []) : []);
 
         overlay.classList.add('open');
         document.getElementById('f-name').focus();
-      }
-
-      function renderServicesChecklist(selectedIds) {
-        const checklist = document.getElementById('services-checklist');
-        checklist.innerHTML = '';
-
-        if (allServices.length === 0) {
-          checklist.innerHTML = '<span class="services-empty">No services defined yet. <a href="services.html">Add services</a> first.</span>';
-          return;
-        }
-
-        allServices.forEach(svc => {
-          const label = document.createElement('label');
-          label.className = 'service-check-item';
-          const checked = selectedIds.includes(svc.id) ? 'checked' : '';
-          label.innerHTML = `
-            <input type="checkbox" name="service_ids" value="${svc.id}" ${checked} />
-            <span>${esc(svc.name)}</span>
-            ${svc.description ? `<span style="color:var(--text-muted);font-size:.8rem">– ${esc(svc.description)}</span>` : ''}
-            <span class="svc-price">${formatCurrency(svc.unit_price)}</span>
-          `;
-          checklist.appendChild(label);
-        });
       }
 
       function closeModal() {
@@ -698,7 +496,7 @@
         editingId = null;
       }
 
-      document.getElementById('add-client-btn').addEventListener('click', () => openModal(null));
+      document.getElementById('add-service-btn').addEventListener('click', () => openModal(null));
       document.getElementById('modal-cancel').addEventListener('click', closeModal);
       overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
@@ -707,33 +505,17 @@
         e.preventDefault();
         clearErrors();
 
-        const name  = document.getElementById('f-name').value.trim();
-        const email = document.getElementById('f-email').value.trim();
-        let valid = true;
-
+        const name = document.getElementById('f-name').value.trim();
         if (!name) {
           document.getElementById('err-name').textContent = 'Name is required.';
-          valid = false;
+          return;
         }
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          document.getElementById('err-email').textContent = 'A valid email is required.';
-          valid = false;
-        }
-        if (!valid) return;
 
-        const contractVal = document.getElementById('f-contract-value').value;
-        const checkedBoxes = form.querySelectorAll('input[name="service_ids"]:checked');
+        const unitPriceVal = document.getElementById('f-unit-price').value;
         const payload = {
           name,
-          email,
-          phone:              document.getElementById('f-phone').value.trim() || null,
-          company:            document.getElementById('f-company').value.trim() || null,
-          address:            document.getElementById('f-address').value.trim() || null,
-          contract_value:     contractVal !== '' ? parseFloat(contractVal) : null,
-          payment_schedule:   document.getElementById('f-payment-schedule').value || null,
-          last_invoice_date:  document.getElementById('f-last-invoice').value || null,
-          notes:              document.getElementById('f-notes').value.trim() || null,
-          service_ids:        Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10)),
+          description: document.getElementById('f-description').value.trim() || null,
+          unit_price:  unitPriceVal !== '' ? parseFloat(unitPriceVal) : 0,
         };
 
         const saveBtn = document.getElementById('modal-save');
@@ -741,7 +523,7 @@
         saveBtn.textContent = 'Saving…';
 
         try {
-          const url    = editingId ? `/api/admin/clients/${editingId}` : '/api/admin/clients';
+          const url    = editingId ? `/api/admin/services/${editingId}` : '/api/admin/services';
           const method = editingId ? 'PUT' : 'POST';
           const res = await authFetch(url, {
             method,
@@ -753,20 +535,19 @@
             showFormError(data.error || 'An error occurred. Please try again.');
           } else {
             closeModal();
-            loadClients(currentPage);
+            loadServices();
           }
         } catch {
           showFormError('Network error. Please try again.');
         } finally {
           saveBtn.disabled = false;
-          saveBtn.textContent = editingId ? 'Save Changes' : 'Save Client';
+          saveBtn.textContent = editingId ? 'Save Changes' : 'Save Service';
         }
       });
 
       // ── Helpers ───────────────────────────────────────────────────────────
       function clearErrors() {
-        document.getElementById('err-name').textContent  = '';
-        document.getElementById('err-email').textContent = '';
+        document.getElementById('err-name').textContent = '';
         formError.textContent = '';
         formError.classList.remove('visible');
       }
@@ -790,22 +571,8 @@
         return '£' + Number(val).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       }
 
-      function formatDate(str) {
-        if (!str) return '—';
-        // last_invoice_date is stored as YYYY-MM-DD; parse as local date
-        const [y, m, d] = str.split('-');
-        if (!y || !m || !d) return str;
-        const date = new Date(Number(y), Number(m) - 1, Number(d));
-        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-      }
-
       // ── Init ──────────────────────────────────────────────────────────────
-      // Load services for the modal checklist, then load clients
-      authFetch('/api/admin/services')
-        .then(r => r.ok ? r.json() : [])
-        .then(data => { allServices = data || []; })
-        .catch(() => { allServices = []; })
-        .finally(() => loadClients(1));
+      loadServices();
     })();
   </script>
 </body>
