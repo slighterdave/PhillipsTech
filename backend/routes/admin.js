@@ -609,11 +609,15 @@ router.post('/clients/:id/invoice/send', async (req, res) => {
   });
 
   const recipientName = client.company || client.name;
+  const defaultEmailBody = `Dear ${recipientName},\n\nPlease find your invoice ${invoiceNum} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`;
+  const emailBody = (typeof req.body.email_body === 'string' && req.body.email_body.trim())
+    ? req.body.email_body.trim()
+    : defaultEmailBody;
   const mailOptions = {
     from: `PhillipsTech <${gmailUser}>`,
     to: client.email,
     subject: `Invoice ${invoiceNum} from PhillipsTech`,
-    text: `Dear ${recipientName},\n\nPlease find your invoice ${invoiceNum} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`,
+    text: emailBody,
     attachments: [
       { filename: `${invoiceNum}.pdf`, content: pdfBuffer, contentType: 'application/pdf' },
     ],
