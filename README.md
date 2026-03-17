@@ -198,10 +198,32 @@ See `backend/.env.example` for all available options.
 
 ### Local development (frontend + backend together)
 
+**Prerequisites:** Node.js ≥ 18 must be installed.
+
+- **Ubuntu/Debian:**
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  ```
+- **macOS:** `brew install node`
+- **Windows / other:** download the installer from [nodejs.org](https://nodejs.org/)
+
+All commands below are run from the **repository root** (`/var/www/phillipstech` on a server, or wherever you cloned the repo locally).
+
 ```bash
-# Terminal 1 – backend
+# Terminal 1 – backend (run from the repo root)
 cd backend
-cp .env.example .env          # fill in JWT_SECRET
+cp .env.example .env
+
+# Generate a random JWT_SECRET and write it into .env automatically
+node -e "
+  const fs = require('fs');
+  const secret = require('crypto').randomBytes(64).toString('hex');
+  let env = fs.readFileSync('.env', 'utf8');
+  fs.writeFileSync('.env', env.replace(/^JWT_SECRET=.*$/m, 'JWT_SECRET=' + secret));
+  console.log('JWT_SECRET generated and written to .env');
+"
+
 npm install
 node seed.js admin@example.com Password123!
 node server.js                # listens on http://127.0.0.1:3000
