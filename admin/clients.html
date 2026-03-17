@@ -368,6 +368,44 @@
     }
     .sidebar-backdrop.open { display: block; }
 
+    /* ── Invoice preview modal ── */
+    .invoice-modal {
+      max-width: 820px;
+    }
+    .invoice-preview-container {
+      width: 100%;
+      height: 70vh;
+      background: #e8e8e8;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .invoice-preview-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+    }
+    .invoice-preview-loading {
+      color: var(--text-muted);
+      font-size: .9rem;
+    }
+    .btn-send {
+      background: var(--success);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .45rem 1.1rem;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-send:hover { background: #157347; }
+    .btn-send:disabled { opacity: .6; cursor: not-allowed; }
+
     @media (max-width: 768px) {
       .hamburger { display: flex; align-items: center; justify-content: center; }
       .sidebar {
@@ -385,6 +423,7 @@
       .modal { margin: .5rem; padding: 1.25rem 1rem; }
       .modal-actions { flex-wrap: wrap; }
       .action-btn { margin-bottom: .2rem; }
+      .invoice-preview-container { height: 50vh; }
     }
   </style>
 </head>
@@ -547,6 +586,25 @@
     </div>
   </div>
 
+  <!-- Invoice Preview modal -->
+  <div class="modal-overlay" id="invoice-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="invoice-modal-title">
+    <div class="modal invoice-modal">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h4 id="invoice-modal-title" style="margin:0">Invoice Preview</h4>
+        <button type="button" class="btn-cancel" id="invoice-modal-close" style="padding:.25rem .5rem;font-size:1rem" aria-label="Close">✕</button>
+      </div>
+      <div class="invoice-preview-container" id="invoice-preview-container">
+        <span class="invoice-preview-loading" id="invoice-preview-loading">Loading preview…</span>
+        <iframe id="invoice-preview-frame" title="Invoice Preview"></iframe>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="invoice-modal-cancel">Cancel</button>
+        <button type="button" class="btn-save" id="invoice-download-btn">⬇ Save</button>
+        <button type="button" class="btn-send" id="invoice-send-btn">✉ Send</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function () {
       const token = localStorage.getItem('admin_token');
@@ -636,14 +694,12 @@
                 <td class="date-cell">${formatDate(row.last_invoice_date)}</td>
                 <td>
                   <button class="action-btn edit-btn" data-id="${row.id}">✎ Edit</button>
-                  <button class="action-btn inv-btn"  data-id="${row.id}" ${row.contract_value == null && (!row.service_ids || row.service_ids.length === 0) ? 'disabled title="Set a contract value or select services first"' : ''}>⬇ Invoice</button>
-                  <button class="action-btn send-btn" data-id="${row.id}" ${row.contract_value == null && (!row.service_ids || row.service_ids.length === 0) ? 'disabled title="Set a contract value or select services first"' : ''}>✉ Send</button>
+                  <button class="action-btn inv-btn"  data-id="${row.id}" ${row.contract_value == null && (!row.service_ids || row.service_ids.length === 0) ? 'disabled title="Set a contract value or select services first"' : ''}>📄 Invoice</button>
                   <button class="action-btn del-btn"  data-id="${row.id}">✕</button>
                 </td>
               `;
               tr.querySelector('.edit-btn').addEventListener('click', () => openModal(row));
-              tr.querySelector('.inv-btn').addEventListener('click', () => generateInvoice(row.id, tr.querySelector('.inv-btn')));
-              tr.querySelector('.send-btn').addEventListener('click', () => sendInvoice(row.id, tr.querySelector('.send-btn')));
+              tr.querySelector('.inv-btn').addEventListener('click', () => openInvoiceModal(row.id));
               tr.querySelector('.del-btn').addEventListener('click', () => {
                 if (confirm(`Delete client "${row.name}"?`)) deleteClient(row.id);
               });
@@ -674,11 +730,69 @@
           .catch(() => alert('Could not delete client.'));
       }
 
-      async function generateInvoice(id, btn) {
+      // ── Invoice preview modal ────────────────────────────────────────────────────
+      const invoiceOverlay = document.getElementById('invoice-modal-overlay');
+      let currentInvoiceClientId = null;
+      let currentPreviewBlobUrl = null;
+
+      function closeInvoiceModal() {
+        invoiceOverlay.classList.remove('open');
+        if (currentPreviewBlobUrl) {
+          URL.revokeObjectURL(currentPreviewBlobUrl);
+          currentPreviewBlobUrl = null;
+        }
+        const frame = document.getElementById('invoice-preview-frame');
+        frame.src = '';
+        frame.style.display = 'none';
+        document.getElementById('invoice-preview-loading').style.display = '';
+        currentInvoiceClientId = null;
+      }
+
+      async function openInvoiceModal(id) {
+        currentInvoiceClientId = id;
+        invoiceOverlay.classList.add('open');
+
+        const loading = document.getElementById('invoice-preview-loading');
+        const frame   = document.getElementById('invoice-preview-frame');
+        loading.textContent = 'Loading preview…';
+        loading.style.display = '';
+        frame.style.display = 'none';
+
+        const downloadBtn = document.getElementById('invoice-download-btn');
+        const sendBtn     = document.getElementById('invoice-send-btn');
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = '⬇ Save';
+        sendBtn.disabled = false;
+        sendBtn.textContent = '✉ Send';
+
+        try {
+          const res = await authFetch(`/api/admin/clients/${id}/invoice/preview`);
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            loading.textContent = data.error || 'Could not generate preview.';
+            return;
+          }
+          const blob = await res.blob();
+          currentPreviewBlobUrl = URL.createObjectURL(blob);
+          frame.src = currentPreviewBlobUrl;
+          frame.style.display = '';
+          loading.style.display = 'none';
+        } catch {
+          loading.textContent = 'Network error generating preview.';
+        }
+      }
+
+      document.getElementById('invoice-modal-close').addEventListener('click', closeInvoiceModal);
+      document.getElementById('invoice-modal-cancel').addEventListener('click', closeInvoiceModal);
+      invoiceOverlay.addEventListener('click', e => { if (e.target === invoiceOverlay) closeInvoiceModal(); });
+
+      document.getElementById('invoice-download-btn').addEventListener('click', async () => {
+        if (!currentInvoiceClientId) return;
+        const btn = document.getElementById('invoice-download-btn');
         btn.disabled = true;
         btn.textContent = '…';
         try {
-          const res = await authFetch(`/api/admin/clients/${id}/invoice`, { method: 'POST' });
+          const res = await authFetch(`/api/admin/clients/${currentInvoiceClientId}/invoice`, { method: 'POST' });
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             alert(data.error || 'Could not generate invoice.');
@@ -693,36 +807,38 @@
           a.href = url;
           a.click();
           URL.revokeObjectURL(url);
-          // Refresh table so Last Invoice date updates
           loadClients(currentPage);
+          closeInvoiceModal();
         } catch {
           alert('Network error generating invoice.');
         } finally {
           btn.disabled = false;
-          btn.textContent = '⬇ Invoice';
+          btn.textContent = '⬇ Save';
         }
-      }
+      });
 
-      async function sendInvoice(id, btn) {
+      document.getElementById('invoice-send-btn').addEventListener('click', async () => {
+        if (!currentInvoiceClientId) return;
+        const btn = document.getElementById('invoice-send-btn');
         btn.disabled = true;
         btn.textContent = '…';
         try {
-          const res = await authFetch(`/api/admin/clients/${id}/invoice/send`, { method: 'POST' });
+          const res = await authFetch(`/api/admin/clients/${currentInvoiceClientId}/invoice/send`, { method: 'POST' });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
             alert(data.error || 'Could not send invoice.');
             return;
           }
           alert(`Invoice ${data.invoiceNum} sent to ${data.sentTo}.`);
-          // Refresh table so Last Invoice date updates
           loadClients(currentPage);
+          closeInvoiceModal();
         } catch {
           alert('Network error sending invoice.');
         } finally {
           btn.disabled = false;
           btn.textContent = '✉ Send';
         }
-      }
+      });
 
       // ── Modal helpers ─────────────────────────────────────────────────────
       const overlay = document.getElementById('modal-overlay');

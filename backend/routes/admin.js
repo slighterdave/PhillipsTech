@@ -525,6 +525,29 @@ function loadInvoiceData(clientId) {
   return { client, selectedServices, siteSettings };
 }
 
+// GET /api/admin/clients/:id/invoice/preview – generate invoice PDF for preview (no date stamp)
+router.get('/clients/:id/invoice/preview', (req, res) => {
+  const data = loadInvoiceData(req.params.id);
+  if (!data) return res.status(404).json({ error: 'Client not found.' });
+
+  const { client, selectedServices, siteSettings } = data;
+
+  if (selectedServices.length === 0 && client.contract_value == null) {
+    return res.status(400).json({ error: 'Client has no services or contract value set.' });
+  }
+
+  const today    = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const invoiceNum = `INV-${todayStr.replace(/-/g, '')}-${String(client.id).padStart(4, '0')}`;
+
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${invoiceNum}.pdf"`);
+  doc.pipe(res);
+  drawInvoice(doc, client, selectedServices, siteSettings, invoiceNum, today);
+  doc.end();
+});
+
 // POST /api/admin/clients/:id/invoice – generate a PDF invoice and download it
 router.post('/clients/:id/invoice', (req, res) => {
   const data = loadInvoiceData(req.params.id);
