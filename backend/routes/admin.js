@@ -525,6 +525,16 @@ function loadInvoiceData(clientId) {
   return { client, selectedServices, siteSettings };
 }
 
+// Helper: calculate the amount for an invoice from client + selected services
+function calcInvoiceAmount(client, selectedServices) {
+  if (selectedServices.length > 0) {
+    return selectedServices.reduce((sum, s) => sum + Number(s.unit_price), 0);
+  }
+  const scheduleMultiplier = { Weekly: 52, Monthly: 12, Quarterly: 4, 'Bi-annually': 2, Annually: 1, 'On completion': 1 };
+  const divisor = scheduleMultiplier[client.payment_schedule] || 1;
+  return client.contract_value / divisor;
+}
+
 // GET /api/admin/clients/:id/invoice/preview – generate invoice PDF for preview (no date stamp)
 router.get('/clients/:id/invoice/preview', (req, res) => {
   const data = loadInvoiceData(req.params.id);
@@ -654,15 +664,8 @@ router.post('/clients/:id/invoice/send', async (req, res) => {
     .run(todayStr, client.id);
 
   // Persist invoice record
-  let invoiceAmount = 0;
-  if (selectedServices.length > 0) {
-    invoiceAmount = selectedServices.reduce((sum, s) => sum + Number(s.unit_price), 0);
-  } else {
-    const scheduleMultiplier = { Weekly: 52, Monthly: 12, Quarterly: 4, 'Bi-annually': 2, Annually: 1, 'On completion': 1 };
-    const divisor = scheduleMultiplier[client.payment_schedule] || 1;
-    invoiceAmount = client.contract_value / divisor;
-  }
-  db.prepare(`INSERT OR IGNORE INTO invoices (client_id, invoice_num, amount, issued_date) VALUES (?, ?, ?, ?)`)
+  const invoiceAmount = calcInvoiceAmount(client, selectedServices);
+  db.prepare(`INSERT INTO invoices (client_id, invoice_num, amount, issued_date) VALUES (?, ?, ?, ?)`)
     .run(client.id, invoiceNum, invoiceAmount, todayStr);
 
   return res.json({ success: true, invoiceNum, sentTo: client.email });
