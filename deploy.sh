@@ -92,10 +92,28 @@ if ! command -v node >/dev/null 2>&1; then
   sudo apt-get install -y nodejs
 fi
 
+# Ensure build tools are present for native Node.js modules (e.g. better-sqlite3)
+if ! dpkg -s build-essential >/dev/null 2>&1 || ! dpkg -s python3-minimal >/dev/null 2>&1; then
+  echo "Installing build tools for native Node.js modules..."
+  sudo apt-get install -y --no-install-recommends build-essential python3-minimal
+fi
+
 # Install backend npm dependencies
 echo "Installing backend dependencies..."
 cd "$BACKEND_DIR"
-npm install --omit=dev --no-audit --no-fund 2>&1 | grep -v "^npm warn" || true
+# Temporarily disable pipefail so that grep -v exiting 1 (when all npm output is
+# advisory warnings) does not abort the script.  We check npm's own exit code via
+# PIPESTATUS and fail loudly if npm itself reported an error.
+set +o pipefail
+npm install --omit=dev --no-audit --no-fund 2>&1 | grep -v "^npm warn"
+_npm_ec="${PIPESTATUS[0]}"
+set -o pipefail
+if [ "$_npm_ec" -ne 0 ]; then
+  echo "ERROR: npm install failed (exit code $_npm_ec)." >&2
+  echo "       Re-running with full output for diagnosis:" >&2
+  npm install --omit=dev 2>&1
+  exit 1
+fi
 
 # Create the .env file if it does not yet exist
 if [ ! -f "$BACKEND_DIR/.env" ]; then
