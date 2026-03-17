@@ -73,6 +73,70 @@ fi
 sudo chown -R "$DEPLOY_USER":"$WEB_USER" "$REPO_DIR"
 sudo chmod -R 755 "$REPO_DIR"
 
+# ── Node.js Backend ───────────────────────────────────────────────────────────
+# Run this before the Nginx/SSL steps so that backend dependencies are always
+# installed even if Nginx configuration or certificate issuance fails.
+
+# Install Node.js (LTS) if not present
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js not found – installing via NodeSource..."
+  curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+fi
+
+# Install backend npm dependencies
+echo "Installing backend dependencies..."
+cd "$BACKEND_DIR"
+npm install --omit=dev --no-audit --no-fund 2>&1 | grep -v "^npm warn"
+
+# Create the .env file if it does not yet exist
+if [ ! -f "$BACKEND_DIR/.env" ]; then
+  echo "Creating backend/.env from .env.example – please update JWT_SECRET before starting the service."
+  cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
+  # Generate a random JWT_SECRET automatically
+  GENERATED_SECRET=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
+  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${GENERATED_SECRET}|" "$BACKEND_DIR/.env"
+  echo "A random JWT_SECRET has been generated in $BACKEND_DIR/.env."
+fi
+
+# Set permissions on .env so only the deploy user can read it
+chmod 600 "$BACKEND_DIR/.env"
+chown "$DEPLOY_USER" "$BACKEND_DIR/.env"
+
+# Install the systemd service unit if it does not already exist
+if [ ! -f "$BACKEND_SERVICE_FILE" ]; then
+  echo "Installing systemd service unit $BACKEND_SERVICE..."
+  sudo tee "$BACKEND_SERVICE_FILE" > /dev/null <<SERVICE
+[Unit]
+Description=PhillipsTech Node.js Backend
+After=network.target
+
+[Service]
+Type=simple
+User=${DEPLOY_USER}
+WorkingDirectory=${BACKEND_DIR}
+EnvironmentFile=${BACKEND_DIR}/.env
+ExecStart=$(command -v node) ${BACKEND_DIR}/server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+  sudo systemctl daemon-reload
+fi
+
+# Enable and (re)start the backend
+echo "Starting/Restarting backend service..."
+sudo systemctl enable "$BACKEND_SERVICE" || echo "WARNING: Could not enable $BACKEND_SERVICE." >&2
+sudo systemctl restart "$BACKEND_SERVICE" || {
+  echo "ERROR: Backend service failed to start. Check: sudo journalctl -u $BACKEND_SERVICE --no-pager -n 30" >&2
+  exit 1
+}
+echo "Backend service running (port 3000)."
+
+cd "$REPO_DIR"
+
 # ── SSL Certificate Management ────────────────────────────────────────────────
 #
 # The SSL config in nginx/phillipstech.conf requires Let's Encrypt certificates.
@@ -178,65 +242,5 @@ sudo systemctl reload-or-restart nginx || {
   sudo journalctl -u nginx --no-pager -n 30 >&2
   exit 1
 }
-
-# ── Node.js Backend ───────────────────────────────────────────────────────────
-
-# Install Node.js (LTS) if not present
-if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js not found – installing via NodeSource..."
-  curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-  sudo apt-get install -y nodejs
-fi
-
-# Install backend npm dependencies
-echo "Installing backend dependencies..."
-cd "$BACKEND_DIR"
-npm install --omit=dev --no-audit --no-fund 2>&1 | grep -v "^npm warn"
-
-# Create the .env file if it does not yet exist
-if [ ! -f "$BACKEND_DIR/.env" ]; then
-  echo "Creating backend/.env from .env.example – please update JWT_SECRET before starting the service."
-  cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
-  # Generate a random JWT_SECRET automatically
-  GENERATED_SECRET=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
-  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${GENERATED_SECRET}|" "$BACKEND_DIR/.env"
-  echo "A random JWT_SECRET has been generated in $BACKEND_DIR/.env."
-fi
-
-# Set permissions on .env so only the deploy user can read it
-chmod 600 "$BACKEND_DIR/.env"
-chown "$DEPLOY_USER" "$BACKEND_DIR/.env"
-
-# Install the systemd service unit if it does not already exist
-if [ ! -f "$BACKEND_SERVICE_FILE" ]; then
-  echo "Installing systemd service unit $BACKEND_SERVICE..."
-  sudo tee "$BACKEND_SERVICE_FILE" > /dev/null <<SERVICE
-[Unit]
-Description=PhillipsTech Node.js Backend
-After=network.target
-
-[Service]
-Type=simple
-User=${DEPLOY_USER}
-WorkingDirectory=${BACKEND_DIR}
-EnvironmentFile=${BACKEND_DIR}/.env
-ExecStart=$(command -v node) ${BACKEND_DIR}/server.js
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-  sudo systemctl daemon-reload
-fi
-
-# Enable and (re)start the backend
-echo "Starting/Restarting backend service..."
-sudo systemctl enable "$BACKEND_SERVICE" || echo "WARNING: Could not enable $BACKEND_SERVICE." >&2
-sudo systemctl restart "$BACKEND_SERVICE" || {
-  echo "ERROR: Backend service failed to start. Check: sudo journalctl -u $BACKEND_SERVICE --no-pager -n 30" >&2
-  exit 1
-}
-echo "Backend service running (port 3000)."
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Deployment complete."

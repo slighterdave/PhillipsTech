@@ -135,10 +135,10 @@ The `deploy.sh` script automates pulling the latest code and refreshing the site
 
 1. Pulls the latest changes from the `main` branch.
 2. Resets any local modifications so the server always matches the repository.
-3. On first run: installs certbot, obtains a Let's Encrypt TLS certificate via the webroot method, and sets up auto-renewal.
-4. Installs the Nginx site config from `nginx/phillipstech.conf`, disables the default Nginx welcome page, and validates the config.
-5. Reloads Nginx to apply all changes.
-6. Installs Node.js if not present, runs `npm install` in `backend/`, and starts/restarts the `phillipstech-backend` systemd service.
+3. Installs Node.js if not present, runs `npm install` in `backend/`, and starts/restarts the `phillipstech-backend` systemd service.
+4. On first run: installs certbot, obtains a Let's Encrypt TLS certificate via the webroot method, and sets up auto-renewal.
+5. Installs the Nginx site config from `nginx/phillipstech.conf`, disables the default Nginx welcome page, and validates the config.
+6. Reloads Nginx to apply all changes.
 
 By default the script uses `admin@phillipstech.info` as the Let's Encrypt registration address. Override it with the `CERT_EMAIL` environment variable:
 
