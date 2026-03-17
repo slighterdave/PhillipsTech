@@ -33,8 +33,14 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/contact', require('./routes/contact'));
 
+// Redirect bare /admin and /admin/ to the login page
+app.get(['/admin', '/admin/'], (req, res) => {
+  res.redirect('/admin/login');
+});
+
 // Serve the admin portal static files
-app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
+// extensions: ['html'] allows /admin/login to resolve to login.html
+app.use('/admin', express.static(path.join(__dirname, '..', 'admin'), { extensions: ['html'] }));
 
 // ── Global error handler ───────────────────────────────────────────────────
 
