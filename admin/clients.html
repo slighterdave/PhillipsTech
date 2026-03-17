@@ -597,10 +597,18 @@
         <span class="invoice-preview-loading" id="invoice-preview-loading">Loading preview…</span>
         <iframe id="invoice-preview-frame" title="Invoice Preview"></iframe>
       </div>
+      <!-- Compose email section (shown when user clicks Send) -->
+      <div id="invoice-compose-section" style="display:none">
+        <label for="invoice-email-body" style="display:block;font-weight:600;margin-bottom:.5rem">Email Message</label>
+        <textarea id="invoice-email-body" rows="10" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:.9rem;padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius);resize:vertical;background:var(--surface);color:var(--text)"></textarea>
+        <p style="font-size:.8rem;color:var(--text-muted);margin:.4rem 0 0">The invoice PDF will be attached automatically.</p>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" id="invoice-modal-cancel">Cancel</button>
+        <button type="button" class="btn-cancel" id="invoice-compose-back-btn" style="display:none">← Back</button>
         <button type="button" class="btn-save" id="invoice-download-btn">⬇ Save</button>
         <button type="button" class="btn-send" id="invoice-send-btn">✉ Send</button>
+        <button type="button" class="btn-send" id="invoice-compose-send-btn" style="display:none">✉ Send</button>
       </div>
     </div>
   </div>
@@ -699,7 +707,7 @@
                 </td>
               `;
               tr.querySelector('.edit-btn').addEventListener('click', () => openModal(row));
-              tr.querySelector('.inv-btn').addEventListener('click', () => openInvoiceModal(row.id));
+              tr.querySelector('.inv-btn').addEventListener('click', () => openInvoiceModal(row));
               tr.querySelector('.del-btn').addEventListener('click', () => {
                 if (confirm(`Delete client "${row.name}"?`)) deleteClient(row.id);
               });
@@ -733,6 +741,7 @@
       // ── Invoice preview modal ────────────────────────────────────────────────────
       const invoiceOverlay = document.getElementById('invoice-modal-overlay');
       let currentInvoiceClientId = null;
+      let currentInvoiceClient = null;
       let currentPreviewBlobUrl = null;
 
       function closeInvoiceModal() {
@@ -746,11 +755,51 @@
         frame.style.display = 'none';
         document.getElementById('invoice-preview-loading').style.display = '';
         currentInvoiceClientId = null;
+        currentInvoiceClient = null;
+        showInvoicePreviewPane();
       }
 
-      async function openInvoiceModal(id) {
-        currentInvoiceClientId = id;
+      function showInvoicePreviewPane() {
+        document.getElementById('invoice-preview-container').style.display = '';
+        document.getElementById('invoice-compose-section').style.display = 'none';
+        document.getElementById('invoice-modal-title').textContent = 'Invoice Preview';
+        document.getElementById('invoice-modal-cancel').style.display = '';
+        document.getElementById('invoice-download-btn').style.display = '';
+        document.getElementById('invoice-send-btn').style.display = '';
+        document.getElementById('invoice-compose-back-btn').style.display = 'none';
+        document.getElementById('invoice-compose-send-btn').style.display = 'none';
+      }
+
+      function showInvoiceComposePane() {
+        // Build default email body using current client info
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+        const invoiceNum = `INV-${todayStr}-${String(currentInvoiceClientId).padStart(4, '0')}`;
+        const recipientName = (currentInvoiceClient && (currentInvoiceClient.company || currentInvoiceClient.name)) || 'Client';
+        const defaultBody = `Dear ${recipientName},\n\nPlease find your invoice ${invoiceNum} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`;
+
+        const textarea = document.getElementById('invoice-email-body');
+        if (!textarea.value.trim()) {
+          textarea.value = defaultBody;
+        }
+
+        document.getElementById('invoice-preview-container').style.display = 'none';
+        document.getElementById('invoice-compose-section').style.display = '';
+        document.getElementById('invoice-modal-title').textContent = 'Compose Email';
+        document.getElementById('invoice-modal-cancel').style.display = 'none';
+        document.getElementById('invoice-download-btn').style.display = 'none';
+        document.getElementById('invoice-send-btn').style.display = 'none';
+        document.getElementById('invoice-compose-back-btn').style.display = '';
+        document.getElementById('invoice-compose-send-btn').style.display = '';
+      }
+
+      async function openInvoiceModal(client) {
+        currentInvoiceClientId = client.id;
+        currentInvoiceClient = client;
+        // Reset compose textarea for this client
+        document.getElementById('invoice-email-body').value = '';
         invoiceOverlay.classList.add('open');
+        showInvoicePreviewPane();
 
         const loading = document.getElementById('invoice-preview-loading');
         const frame   = document.getElementById('invoice-preview-frame');
@@ -766,7 +815,7 @@
         sendBtn.textContent = '✉ Send';
 
         try {
-          const res = await authFetch(`/api/admin/clients/${id}/invoice/preview`);
+          const res = await authFetch(`/api/admin/clients/${client.id}/invoice/preview`);
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             loading.textContent = data.error || 'Could not generate preview.';
@@ -817,13 +866,30 @@
         }
       });
 
-      document.getElementById('invoice-send-btn').addEventListener('click', async () => {
+      // "✉ Send" on the preview pane → switch to compose pane
+      document.getElementById('invoice-send-btn').addEventListener('click', () => {
         if (!currentInvoiceClientId) return;
-        const btn = document.getElementById('invoice-send-btn');
+        showInvoiceComposePane();
+      });
+
+      // "← Back" on compose pane → return to preview
+      document.getElementById('invoice-compose-back-btn').addEventListener('click', () => {
+        showInvoicePreviewPane();
+      });
+
+      // "Send" on compose pane → actually send the invoice
+      document.getElementById('invoice-compose-send-btn').addEventListener('click', async () => {
+        if (!currentInvoiceClientId) return;
+        const btn = document.getElementById('invoice-compose-send-btn');
         btn.disabled = true;
         btn.textContent = '…';
+        const emailBody = document.getElementById('invoice-email-body').value;
         try {
-          const res = await authFetch(`/api/admin/clients/${currentInvoiceClientId}/invoice/send`, { method: 'POST' });
+          const res = await authFetch(`/api/admin/clients/${currentInvoiceClientId}/invoice/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email_body: emailBody }),
+          });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
             alert(data.error || 'Could not send invoice.');

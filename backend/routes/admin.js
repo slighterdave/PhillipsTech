@@ -609,11 +609,10 @@ router.post('/clients/:id/invoice/send', async (req, res) => {
   });
 
   const recipientName = client.company || client.name;
-  const defaultEmailBody = `Dear {name},\n\nPlease find your invoice {invoice_num} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`;
-  const emailBodyTemplate = (siteSettings.invoice_email_body || '').trim() || defaultEmailBody;
-  const emailBody = emailBodyTemplate
-    .replace(/\{name\}/g, recipientName)
-    .replace(/\{invoice_num\}/g, invoiceNum);
+  const defaultEmailBody = `Dear ${recipientName},\n\nPlease find your invoice ${invoiceNum} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`;
+  const emailBody = (typeof req.body.email_body === 'string' && req.body.email_body.trim())
+    ? req.body.email_body.trim()
+    : defaultEmailBody;
   const mailOptions = {
     from: `PhillipsTech <${gmailUser}>`,
     to: client.email,
@@ -726,7 +725,6 @@ const SETTINGS_KEYS = [
   'sol_address',
   'gmail_user',
   'gmail_app_password',
-  'invoice_email_body',
 ];
 
 // GET /api/admin/settings – retrieve all site settings
