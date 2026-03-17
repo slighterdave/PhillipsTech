@@ -396,6 +396,11 @@
               <input type="password" id="s-gmail-app-password" name="gmail_app_password" autocomplete="off" placeholder="16-character app password" />
               <p class="form-hint">Generate an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">App Password</a> in your Google account (requires 2-Step Verification). Do not use your regular Gmail password.</p>
             </div>
+            <div class="form-group">
+              <label for="s-invoice-email-body">Default Invoice Email Body</label>
+              <textarea id="s-invoice-email-body" name="invoice_email_body" rows="7" placeholder="Dear {name},&#10;&#10;Please find your invoice {invoice_num} attached.&#10;&#10;Payment is due within 14 days. Thank you for your business.&#10;&#10;Kind regards,&#10;PhillipsTech"></textarea>
+              <p class="form-hint">The body of the email sent with each invoice. Use <code>{name}</code> for the client/company name and <code>{invoice_num}</code> for the invoice number. Leave blank to use the default message.</p>
+            </div>
           </div>
         </div>
 
@@ -475,6 +480,7 @@
             document.getElementById('s-sol-address').value        = data.sol_address        || '';
             document.getElementById('s-gmail-user').value         = data.gmail_user         || '';
             document.getElementById('s-gmail-app-password').value = data.gmail_app_password || '';
+            document.getElementById('s-invoice-email-body').value = data.invoice_email_body || '';
           })
           .catch(() => showStatus('Failed to load settings.', false));
       }
@@ -506,6 +512,7 @@
           sol_address:         document.getElementById('s-sol-address').value,
           gmail_user:          document.getElementById('s-gmail-user').value,
           gmail_app_password:  document.getElementById('s-gmail-app-password').value,
+          invoice_email_body:  document.getElementById('s-invoice-email-body').value,
         };
 
         try {
