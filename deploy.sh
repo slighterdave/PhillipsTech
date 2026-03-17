@@ -67,6 +67,14 @@ else
   git clean -fd
 
   echo "Repository updated to $(git rev-parse --short HEAD)."
+
+  # Re-exec the updated script from the top so that the rest of the deployment
+  # always runs with the latest code.  Without this, bash continues reading from
+  # its old byte offset into the newly-written file and silently skips any
+  # sections that were inserted or moved by the update (e.g. backend npm install).
+  # On the second run PREV_COMMIT == NEW_COMMIT (the reset already advanced HEAD),
+  # so this branch is not taken again – no infinite loop.
+  exec "$REPO_DIR/deploy.sh" "$@"
 fi
 
 # Fix file ownership so Nginx can serve the files
@@ -87,7 +95,7 @@ fi
 # Install backend npm dependencies
 echo "Installing backend dependencies..."
 cd "$BACKEND_DIR"
-npm install --omit=dev --no-audit --no-fund 2>&1 | grep -v "^npm warn"
+npm install --omit=dev --no-audit --no-fund 2>&1 | grep -v "^npm warn" || true
 
 # Create the .env file if it does not yet exist
 if [ ! -f "$BACKEND_DIR/.env" ]; then
