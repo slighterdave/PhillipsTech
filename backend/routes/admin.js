@@ -129,13 +129,16 @@ router.post('/clients', (req, res) => {
 
   const newId = result.lastInsertRowid;
 
-  // Save service associations
-  if (Array.isArray(service_ids) && service_ids.length > 0) {
+  // Save service associations (filter to valid integer IDs only)
+  const validServiceIds = Array.isArray(service_ids)
+    ? service_ids.map(id => parseInt(id, 10)).filter(id => Number.isFinite(id) && id > 0)
+    : [];
+  if (validServiceIds.length > 0) {
     const insertSvc = db.prepare('INSERT OR IGNORE INTO client_services (client_id, service_id) VALUES (?, ?)');
     const saveServices = db.transaction((ids) => {
-      ids.forEach(sid => insertSvc.run(newId, Number(sid)));
+      ids.forEach(sid => insertSvc.run(newId, sid));
     });
-    saveServices(service_ids);
+    saveServices(validServiceIds);
   }
 
   const created = db.prepare('SELECT * FROM clients WHERE id = ?').get(newId);
@@ -182,14 +185,15 @@ router.put('/clients/:id', (req, res) => {
     updated.notes, id,
   );
 
-  // Update service associations if provided
+  // Update service associations if provided (filter to valid integer IDs only)
   if (Array.isArray(service_ids)) {
+    const validSvcIds = service_ids.map(sid => parseInt(sid, 10)).filter(sid => Number.isFinite(sid) && sid > 0);
     const replaceServices = db.transaction((ids) => {
       db.prepare('DELETE FROM client_services WHERE client_id = ?').run(id);
       const insertSvc = db.prepare('INSERT OR IGNORE INTO client_services (client_id, service_id) VALUES (?, ?)');
-      ids.forEach(sid => insertSvc.run(Number(id), Number(sid)));
+      ids.forEach(sid => insertSvc.run(Number(id), sid));
     });
-    replaceServices(service_ids);
+    replaceServices(validSvcIds);
   }
 
   const row = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
@@ -455,7 +459,7 @@ router.post('/services', (req, res) => {
   `).run(
     name.trim(),
     description ? String(description).trim() : null,
-    unit_price !== undefined && unit_price !== null ? Number(unit_price) : 0,
+    unit_price !== undefined && unit_price !== null ? (Number.isFinite(parseFloat(unit_price)) ? parseFloat(unit_price) : 0) : 0,
   );
 
   const created = db.prepare('SELECT * FROM services WHERE id = ?').get(result.lastInsertRowid);
@@ -477,7 +481,7 @@ router.put('/services/:id', (req, res) => {
   const updated = {
     name:        name !== undefined        ? name.trim()                                           : existing.name,
     description: description !== undefined ? (description ? String(description).trim() : null)    : existing.description,
-    unit_price:  unit_price !== undefined  ? (unit_price !== null ? Number(unit_price) : 0)        : existing.unit_price,
+    unit_price:  unit_price !== undefined  ? (unit_price !== null && Number.isFinite(parseFloat(unit_price)) ? parseFloat(unit_price) : 0) : existing.unit_price,
   };
 
   db.prepare(`
