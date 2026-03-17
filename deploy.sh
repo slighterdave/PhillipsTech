@@ -85,9 +85,11 @@ sudo chmod -R 755 "$REPO_DIR"
 # Run this before the Nginx/SSL steps so that backend dependencies are always
 # installed even if Nginx configuration or certificate issuance fails.
 
-# Install Node.js (LTS) if not present
-if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js not found – installing via NodeSource..."
+# Install Node.js (LTS) and npm if not present.
+# Check for both: node can exist without npm (e.g. when installed from the
+# default Ubuntu apt repo which ships them as separate packages).
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  echo "Node.js/npm not found – installing via NodeSource..."
   curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
