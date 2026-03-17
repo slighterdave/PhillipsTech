@@ -1,0 +1,10 @@
+# Node.js dependencies
+backend/node_modules/
+
+# SQLite database (runtime artefact; never commit)
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Backend environment file (contains secrets)
+backend/.env

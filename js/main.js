@@ -264,22 +264,36 @@
     const label = btn.querySelector('.btn-label');
 
     // Loading state
-    btn.disabled    = true;
+    btn.disabled      = true;
     label.textContent = 'Sending…';
 
-    // Simulate async submission (replace with real fetch/API call)
-    setTimeout(function () {
-      form.reset();
-      btn.disabled      = false;
-      label.textContent = 'Send Message';
-      formSuccess.classList.add('visible');
-      formSuccess.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    var name    = document.getElementById('name').value.trim();
+    var email   = document.getElementById('email').value.trim();
+    var message = document.getElementById('message').value.trim();
 
-      // Hide success message after 8 seconds
-      setTimeout(function () {
-        formSuccess.classList.remove('visible');
-      }, 8000);
-    }, 1200);
+    fetch('/api/contact', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name: name, email: email, message: message }),
+    })
+      .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+      .then(function (result) {
+        btn.disabled      = false;
+        label.textContent = 'Send Message';
+        if (result.ok) {
+          form.reset();
+          formSuccess.classList.add('visible');
+          formSuccess.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          setTimeout(function () { formSuccess.classList.remove('visible'); }, 8000);
+        } else {
+          showError('message', result.data.error || 'Submission failed. Please try again.');
+        }
+      })
+      .catch(function () {
+        btn.disabled      = false;
+        label.textContent = 'Send Message';
+        showError('message', 'Unable to send message. Please try again later.');
+      });
   }
 
   /* ── Footer Year ── */
