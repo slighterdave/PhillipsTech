@@ -340,6 +340,28 @@
           </div>
         </div>
 
+        <!-- Gmail Email Settings -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              Gmail Email Settings
+            </h3>
+          </div>
+          <div class="settings-card-body">
+            <div class="form-group">
+              <label for="s-gmail-user">Gmail Address</label>
+              <input type="email" id="s-gmail-user" name="gmail_user" autocomplete="off" placeholder="e.g. invoices@gmail.com" />
+              <p class="form-hint">The Gmail address used to send invoices to clients.</p>
+            </div>
+            <div class="form-group">
+              <label for="s-gmail-app-password">Gmail App Password</label>
+              <input type="password" id="s-gmail-app-password" name="gmail_app_password" autocomplete="off" placeholder="16-character app password" />
+              <p class="form-hint">Generate an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">App Password</a> in your Google account (requires 2-Step Verification). Do not use your regular Gmail password.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Save -->
         <div class="action-bar">
           <button type="submit" class="btn-save" id="save-btn">Save Settings</button>
@@ -393,6 +415,8 @@
             document.getElementById('s-bank-account-number').value= data.bank_account_number|| '';
             document.getElementById('s-btc-address').value        = data.btc_address        || '';
             document.getElementById('s-sol-address').value        = data.sol_address        || '';
+            document.getElementById('s-gmail-user').value         = data.gmail_user         || '';
+            document.getElementById('s-gmail-app-password').value = data.gmail_app_password || '';
           })
           .catch(() => showStatus('Failed to load settings.', false));
       }
@@ -422,6 +446,8 @@
           bank_account_number: document.getElementById('s-bank-account-number').value,
           btc_address:         document.getElementById('s-btc-address').value,
           sol_address:         document.getElementById('s-sol-address').value,
+          gmail_user:          document.getElementById('s-gmail-user').value,
+          gmail_app_password:  document.getElementById('s-gmail-app-password').value,
         };
 
         try {

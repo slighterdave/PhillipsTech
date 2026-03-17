@@ -3,6 +3,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const PDFDocument = require('pdfkit');
+const nodemailer = require('nodemailer');
 const db = require('../database');
 const authenticate = require('../middleware/authenticate');
 
@@ -201,39 +202,12 @@ router.put('/clients/:id', (req, res) => {
   return res.json(row);
 });
 
-// POST /api/admin/clients/:id/invoice – generate a PDF invoice and stamp last_invoice_date
-router.post('/clients/:id/invoice', (req, res) => {
-  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
-  if (!client) return res.status(404).json({ error: 'Client not found.' });
-
-  // Fetch selected services for this client
-  const selectedServices = db.prepare(`
-    SELECT s.* FROM services s
-    INNER JOIN client_services cs ON cs.service_id = s.id
-    WHERE cs.client_id = ?
-    ORDER BY s.name ASC
-  `).all(req.params.id);
-
+// ── Invoice PDF helper ────────────────────────────────────────────────────
+// Draws all invoice content onto doc. Caller must pipe doc and call doc.end().
+function drawInvoice(doc, client, selectedServices, siteSettings, invoiceNum, today) {
   const hasServices = selectedServices.length > 0;
 
-  if (!hasServices && client.contract_value == null) {
-    return res.status(400).json({ error: 'Client has no services or contract value set.' });
-  }
-
-  // Fetch site settings for footer (graceful fallback if unavailable)
-  const siteSettings = {};
-  try {
-    db.prepare('SELECT key, value FROM site_settings').all().forEach(r => {
-      siteSettings[r.key] = r.value;
-    });
-  } catch {
-    // Settings unavailable; footer will render without address/payment details
-  }
-
-  // Dates
-  const today    = new Date();
-  const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
-  const dueDate  = new Date(today);
+  const dueDate = new Date(today);
   dueDate.setDate(dueDate.getDate() + 14);
 
   const fmtDate = (d) =>
@@ -241,20 +215,6 @@ router.post('/clients/:id/invoice', (req, res) => {
 
   const fmtCurrency = (n) =>
     '£' + Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  // Invoice number: INV-YYYYMMDD-<clientId>
-  const invoiceNum = `INV-${todayStr.replace(/-/g, '')}-${String(client.id).padStart(4, '0')}`;
-
-  // Stamp last_invoice_date
-  db.prepare(`UPDATE clients SET last_invoice_date = ?, updated_at = datetime('now') WHERE id = ?`)
-    .run(todayStr, client.id);
-
-  // Build PDF
-  const doc = new PDFDocument({ size: 'A4', margin: 50 });
-
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${invoiceNum}.pdf"`);
-  doc.pipe(res);
 
   // ── Brand header ──────────────────────────────────────────────────────────
   const BRAND_BLUE = '#0066cc';
@@ -428,7 +388,6 @@ router.post('/clients/:id/invoice', (req, res) => {
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  // Parse settings content for footer columns
   const fAddrLines = siteSettings.address
     ? siteSettings.address.split(/\n/).map(l => l.trim()).filter(Boolean)
     : [];
@@ -448,35 +407,28 @@ router.post('/clients/:id/invoice', (req, res) => {
   const hasCrypto  = fCryptoLines.length > 0;
   const hasContent = hasAddr || hasBank || hasCrypto;
 
-  // Footer line/spacing constants
-  const FL = 13;            // line height
-  const FH = 11;            // section header height
-  const FG = 10;            // gap between sections
-  const CRYPTO_LABEL_H = 10; // height of crypto coin label line
+  const FL = 13;
+  const FH = 11;
+  const FG = 10;
+  const CRYPTO_LABEL_H = 10;
 
-  // Calculate column heights
-  // Crypto uses 2 lines per entry (label line + address line) for long addresses
-  const cryptoEntryH = CRYPTO_LABEL_H + FL; // label + address line
-  const addrColH   = hasAddr   ? FH + fAddrLines.length * FL        : 0;
-  const bankColH   = hasBank   ? FH + fBankLines.length * FL        : 0;
+  const cryptoEntryH = CRYPTO_LABEL_H + FL;
+  const addrColH   = hasAddr   ? FH + fAddrLines.length * FL            : 0;
+  const bankColH   = hasBank   ? FH + fBankLines.length * FL            : 0;
   const cryptoColH = hasCrypto ? FH + fCryptoLines.length * cryptoEntryH : 0;
   const maxColH    = Math.max(addrColH, bankColH, cryptoColH);
 
-  // Position footer elements from the bottom of the page
-  // All y values must be < page.height - 50 (bottom margin)
-  const safeBottom  = doc.page.height - 55;           // ~787 for A4
-  const brandY      = safeBottom - FL;                // brand line
-  const thankY      = brandY - FL;                    // thank-you line
-  const innerDivY   = thankY - FG;                    // divider above thank-you
+  const safeBottom  = doc.page.height - 55;
+  const brandY      = safeBottom - FL;
+  const thankY      = brandY - FL;
+  const innerDivY   = thankY - FG;
   const contentEndY = innerDivY - (hasContent ? FG : 0);
   const contentY    = contentEndY - (hasContent ? maxColH : 0);
   const topDivY     = contentY - (hasContent ? FG : 0);
 
-  // Footer background strip
   doc.rect(0, topDivY - 6, doc.page.width, doc.page.height - topDivY + 6)
      .fill('#f8f9fa');
 
-  // Top divider
   doc.moveTo(50, topDivY).lineTo(doc.page.width - 50, topDivY)
      .strokeColor('#dee2e6').lineWidth(0.5).stroke();
 
@@ -485,7 +437,6 @@ router.post('/clients/:id/invoice', (req, res) => {
     const col2X = 215;
     const col3X = 395;
 
-    // ── Address column ──────────────────────────────────────────────────────
     if (hasAddr) {
       let y = contentY;
       doc.fontSize(7).fillColor(MUTED).font('Helvetica-Bold')
@@ -498,7 +449,6 @@ router.post('/clients/:id/invoice', (req, res) => {
       });
     }
 
-    // ── Bank transfer column ────────────────────────────────────────────────
     if (hasBank) {
       let y = contentY;
       doc.fontSize(7).fillColor(MUTED).font('Helvetica-Bold')
@@ -511,7 +461,6 @@ router.post('/clients/:id/invoice', (req, res) => {
       });
     }
 
-    // ── Cryptocurrency column ───────────────────────────────────────────────
     if (hasCrypto) {
       let y = contentY;
       doc.fontSize(7).fillColor(MUTED).font('Helvetica-Bold')
@@ -527,20 +476,143 @@ router.post('/clients/:id/invoice', (req, res) => {
       });
     }
 
-    // Inner divider separating columns from thank-you text
     doc.moveTo(50, innerDivY).lineTo(doc.page.width - 50, innerDivY)
        .strokeColor('#dee2e6').lineWidth(0.3).stroke();
   }
 
-  // Thank-you message and brand line
   doc.fontSize(8).fillColor(MUTED).font('Helvetica')
      .text('Thank you for your business. Please make payment within 14 days of invoice date.',
            50, thankY, { align: 'center', width: doc.page.width - 100 });
   doc.fontSize(8).fillColor(MUTED).font('Helvetica')
      .text('PhillipsTech  •  info@phillipstech.co.uk',
            50, brandY, { align: 'center', width: doc.page.width - 100 });
+}
 
+// Resolves with a Buffer containing the complete PDF.
+function buildInvoiceBuffer(client, selectedServices, siteSettings, invoiceNum, today) {
+  return new Promise((resolve, reject) => {
+    const doc    = new PDFDocument({ size: 'A4', margin: 50 });
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end',  () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    drawInvoice(doc, client, selectedServices, siteSettings, invoiceNum, today);
+    doc.end();
+  });
+}
+
+// ── Shared invoice data loader ────────────────────────────────────────────
+function loadInvoiceData(clientId) {
+  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(clientId);
+  if (!client) return null;
+
+  const selectedServices = db.prepare(`
+    SELECT s.* FROM services s
+    INNER JOIN client_services cs ON cs.service_id = s.id
+    WHERE cs.client_id = ?
+    ORDER BY s.name ASC
+  `).all(clientId);
+
+  const siteSettings = {};
+  try {
+    db.prepare('SELECT key, value FROM site_settings').all().forEach(r => {
+      siteSettings[r.key] = r.value;
+    });
+  } catch {
+    // Settings unavailable; footer will render without details
+  }
+
+  return { client, selectedServices, siteSettings };
+}
+
+// POST /api/admin/clients/:id/invoice – generate a PDF invoice and download it
+router.post('/clients/:id/invoice', (req, res) => {
+  const data = loadInvoiceData(req.params.id);
+  if (!data) return res.status(404).json({ error: 'Client not found.' });
+
+  const { client, selectedServices, siteSettings } = data;
+
+  if (selectedServices.length === 0 && client.contract_value == null) {
+    return res.status(400).json({ error: 'Client has no services or contract value set.' });
+  }
+
+  const today    = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const invoiceNum = `INV-${todayStr.replace(/-/g, '')}-${String(client.id).padStart(4, '0')}`;
+
+  db.prepare(`UPDATE clients SET last_invoice_date = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(todayStr, client.id);
+
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${invoiceNum}.pdf"`);
+  doc.pipe(res);
+  drawInvoice(doc, client, selectedServices, siteSettings, invoiceNum, today);
   doc.end();
+});
+
+// POST /api/admin/clients/:id/invoice/send – generate PDF and email it to the client
+router.post('/clients/:id/invoice/send', async (req, res) => {
+  const data = loadInvoiceData(req.params.id);
+  if (!data) return res.status(404).json({ error: 'Client not found.' });
+
+  const { client, selectedServices, siteSettings } = data;
+
+  if (selectedServices.length === 0 && client.contract_value == null) {
+    return res.status(400).json({ error: 'Client has no services or contract value set.' });
+  }
+
+  const gmailUser = (siteSettings.gmail_user || '').trim();
+  const gmailPass = (siteSettings.gmail_app_password || '').trim();
+  if (!gmailUser || !gmailPass) {
+    return res.status(400).json({ error: 'Gmail credentials are not configured. Please add them in Settings.' });
+  }
+
+  const today    = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const invoiceNum = `INV-${todayStr.replace(/-/g, '')}-${String(client.id).padStart(4, '0')}`;
+
+  let pdfBuffer;
+  try {
+    pdfBuffer = await buildInvoiceBuffer(client, selectedServices, siteSettings, invoiceNum, today);
+  } catch (err) {
+    console.error('Invoice PDF generation failed:', err);
+    return res.status(500).json({ error: 'Failed to generate invoice PDF.' });
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: gmailUser, pass: gmailPass },
+  });
+
+  const recipientName = client.company || client.name;
+  const mailOptions = {
+    from: `PhillipsTech <${gmailUser}>`,
+    to: client.email,
+    subject: `Invoice ${invoiceNum} from PhillipsTech`,
+    text: `Dear ${recipientName},\n\nPlease find your invoice ${invoiceNum} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`,
+    attachments: [
+      { filename: `${invoiceNum}.pdf`, content: pdfBuffer, contentType: 'application/pdf' },
+    ],
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (err) {
+    console.error('Invoice email failed:', err);
+    const isAuthErr = err.responseCode === 535 || (err.code === 'EAUTH') ||
+      (typeof err.message === 'string' && err.message.toLowerCase().includes('invalid credentials'));
+    const hint = isAuthErr
+      ? 'Authentication failed — check that the Gmail address and App Password are correct in Settings.'
+      : 'Email could not be sent. Verify the Gmail credentials in Settings and ensure the account allows SMTP access.';
+    return res.status(502).json({ error: hint });
+  }
+
+  // Stamp last_invoice_date only after successful send
+  db.prepare(`UPDATE clients SET last_invoice_date = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(todayStr, client.id);
+
+  return res.json({ success: true, invoiceNum, sentTo: client.email });
 });
 
 // DELETE /api/admin/clients/:id – delete a client
@@ -624,6 +696,8 @@ const SETTINGS_KEYS = [
   'bank_account_number',
   'btc_address',
   'sol_address',
+  'gmail_user',
+  'gmail_app_password',
 ];
 
 // GET /api/admin/settings – retrieve all site settings
