@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expenses – PhillipsTech Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #0066cc;
+      --primary-dark: #0052a3;
+      --sidebar-bg:   #1a1a2e;
+      --sidebar-text: #c9d1d9;
+      --sidebar-hover:#243251;
+      --text:         #1a1a2e;
+      --text-muted:   #6c757d;
+      --border:       #dee2e6;
+      --bg:           #f0f2f5;
+      --white:        #ffffff;
+      --success:      #198754;
+      --danger:       #dc3545;
+      --warning:      #fd7e14;
+      --radius:       8px;
+      --shadow:       0 2px 12px rgba(0,0,0,.07);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+    .sidebar-brand {
+      padding: 1.5rem 1.25rem 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar-brand span { color: var(--primary); }
+    .sidebar nav { flex: 1; padding: .75rem 0; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .625rem 1.25rem;
+      cursor: pointer;
+      font-size: .9rem;
+      border-left: 3px solid transparent;
+      transition: background .15s, border-color .15s;
+      color: var(--sidebar-text);
+      text-decoration: none;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: var(--sidebar-hover);
+      border-left-color: var(--primary);
+      color: #fff;
+    }
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,.08);
+      font-size: .8rem;
+      color: var(--sidebar-text);
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #fc8181;
+      cursor: pointer;
+      font-size: .85rem;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .logout-btn:hover { color: #fff; }
+
+    /* ── Main ── */
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .topbar h2 { font-size: 1.15rem; font-weight: 700; }
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .875rem;
+      color: var(--text-muted);
+    }
+    .user-pill strong { color: var(--text); }
+
+    .content { padding: 1.5rem; }
+
+    /* ── Summary cards ── */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.1rem 1.25rem;
+    }
+    .summary-card .label { font-size: .78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
+    .summary-card .value { font-size: 1.4rem; font-weight: 700; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+    .toolbar-left { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+    .add-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .5rem 1.1rem;
+      font-size: .9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      transition: background .15s;
+    }
+    .add-btn:hover { background: var(--primary-dark); }
+
+    .filter-select, .filter-input {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .45rem .65rem;
+      font-size: .875rem;
+      font-family: inherit;
+      background: var(--white);
+      color: var(--text);
+    }
+    .filter-input { width: 140px; }
+
+    /* ── Section card / table ── */
+    .section-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .section-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-header h3 { font-size: 1rem; font-weight: 700; }
+    .section-count { font-size: .8rem; color: var(--text-muted); }
+
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      text-align: left;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9fa; }
+
+    .currency-cell { white-space: nowrap; font-weight: 600; }
+    .date-cell { white-space: nowrap; color: var(--text-muted); font-size: .8rem; }
+    .muted { color: var(--text-muted); }
+
+    .badge {
+      display: inline-block;
+      padding: .2rem .55rem;
+      border-radius: 100px;
+      font-size: .75rem;
+      font-weight: 600;
+      white-space: nowrap;
+      text-transform: capitalize;
+    }
+    .badge-software  { background: #dbeafe; color: #1e40af; }
+    .badge-hardware  { background: #fef9c3; color: #854d0e; }
+    .badge-hosting   { background: #e0e7ff; color: #3730a3; }
+    .badge-marketing { background: #fce7f3; color: #9d174d; }
+    .badge-travel    { background: #d1fae5; color: #065f46; }
+    .badge-utilities { background: #ffedd5; color: #9a3412; }
+    .badge-office    { background: #f3f4f6; color: #374151; }
+    .badge-other     { background: #f1f5f9; color: #475569; }
+
+    .action-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .25rem .6rem;
+      font-size: .8rem;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      margin-right: .25rem;
+    }
+    .action-btn.edit-btn { color: var(--primary); border-color: var(--primary); }
+    .action-btn.edit-btn:hover { background: var(--primary); color: #fff; }
+    .action-btn.del-btn  { color: var(--danger);  border-color: var(--danger);  }
+    .action-btn.del-btn:hover  { background: var(--danger);  color: #fff; }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+      max-width: 520px;
+      width: 100%;
+      margin: 1rem;
+      padding: 1.5rem;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 1.25rem; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem 1rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: .3rem; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: .8rem; font-weight: 600; color: var(--text-muted); }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .45rem .65rem;
+      font-size: .875rem;
+      font-family: inherit;
+      width: 100%;
+      transition: border-color .15s;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .form-group textarea { resize: vertical; min-height: 72px; }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+      margin-top: 1.25rem;
+    }
+    .btn-cancel {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .45rem 1rem;
+      font-size: .9rem;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { background: var(--bg); }
+    .btn-save {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: .45rem 1.1rem;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: var(--primary-dark); }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+
+    .form-error {
+      margin-top: .75rem;
+      color: var(--danger);
+      font-size: .85rem;
+      padding: .5rem .75rem;
+      background: #fff0f0;
+      border: 1px solid #fcc;
+      border-radius: 4px;
+      display: none;
+    }
+    .form-error.visible { display: block; }
+
+    /* ── Mobile hamburger / drawer ── */
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: .4rem;
+      color: var(--text);
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .hamburger:hover { background: var(--bg); }
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 199;
+    }
+    .sidebar-backdrop.open { display: block; }
+
+    @media (max-width: 768px) {
+      .hamburger { display: flex; align-items: center; justify-content: center; }
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+        z-index: 200;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .topbar { padding: .75rem 1rem; }
+      .content { padding: 1rem .75rem; }
+      .toolbar { flex-wrap: wrap; gap: .5rem; }
+      #table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .modal { margin: .5rem; padding: 1.25rem 1rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .filter-input { width: 110px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span>Phillips</span>Tech</div>
+    <nav>
+      <a class="nav-item" href="dashboard.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="clients.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Clients
+      </a>
+      <a class="nav-item" href="invoices.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        Invoices
+      </a>
+      <a class="nav-item active" href="expenses.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+        Expenses
+      </a>
+      <a class="nav-item" href="services.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z"/></svg>
+        Services
+      </a>
+      <a class="nav-item" href="settings.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      Signed in as <br/>
+      <strong id="sidebar-email">—</strong><br/>
+      <button class="logout-btn" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <button class="hamburger" id="hamburger-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <h2>Expenses</h2>
+      </div>
+      <div class="user-pill">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        <strong id="topbar-email">—</strong>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Summary cards -->
+      <div class="summary-row" id="summary-row">
+        <div class="summary-card">
+          <div class="label">Total (All Time)</div>
+          <div class="value" id="summary-total">£0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">This Month</div>
+          <div class="value" id="summary-month">£0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">This Year</div>
+          <div class="value" id="summary-year">£0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Total Entries</div>
+          <div class="value" id="summary-count">0</div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select class="filter-select" id="category-filter" aria-label="Filter by category">
+            <option value="">All Categories</option>
+            <option value="software">Software</option>
+            <option value="hardware">Hardware</option>
+            <option value="hosting">Hosting</option>
+            <option value="marketing">Marketing</option>
+            <option value="travel">Travel</option>
+            <option value="utilities">Utilities</option>
+            <option value="office">Office</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="date" class="filter-input" id="from-filter" aria-label="From date" title="From date" />
+          <input type="date" class="filter-input" id="to-filter"   aria-label="To date"   title="To date"   />
+        </div>
+        <button class="add-btn" id="add-expense-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Add Expense
+        </button>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Expense Records</h3>
+          <span class="section-count" id="expense-count">0 expenses</span>
+        </div>
+        <div id="table-wrap">
+          <table id="expenses-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="expenses-tbody"></tbody>
+          </table>
+          <div id="empty-state" class="empty-state" style="display:none">
+            No expenses yet. Click <strong>Add Expense</strong> to record one.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / Edit Expense Modal -->
+  <div class="modal-overlay" id="expense-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="expense-modal-title">
+    <div class="modal">
+      <h4 id="expense-modal-title">Add Expense</h4>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="exp-title">Title <span aria-hidden="true">*</span></label>
+          <input type="text" id="exp-title" placeholder="e.g. Monthly server bill" maxlength="200" />
+        </div>
+        <div class="form-group">
+          <label for="exp-amount">Amount (£) <span aria-hidden="true">*</span></label>
+          <input type="number" id="exp-amount" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label for="exp-date">Date <span aria-hidden="true">*</span></label>
+          <input type="date" id="exp-date" />
+        </div>
+        <div class="form-group full">
+          <label for="exp-category">Category</label>
+          <select id="exp-category">
+            <option value="software">Software</option>
+            <option value="hardware">Hardware</option>
+            <option value="hosting">Hosting</option>
+            <option value="marketing">Marketing</option>
+            <option value="travel">Travel</option>
+            <option value="utilities">Utilities</option>
+            <option value="office">Office</option>
+            <option value="other" selected>Other</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="exp-notes">Notes</label>
+          <textarea id="exp-notes" placeholder="Optional notes…"></textarea>
+        </div>
+      </div>
+      <div class="form-error" id="exp-form-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="exp-modal-cancel">Cancel</button>
+        <button type="button" class="btn-save"   id="exp-modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem('admin_token');
+      if (!token) { window.location.replace('/admin/login.html'); return; }
+
+      // ── Mobile sidebar toggle ────────────────────────────────────────────
+      const hamburgerBtn = document.getElementById('hamburger-btn');
+      const sidebar      = document.getElementById('sidebar');
+      const backdrop     = document.getElementById('sidebar-backdrop');
+
+      function openSidebar() {
+        sidebar.classList.add('open');
+        backdrop.classList.add('open');
+        hamburgerBtn.setAttribute('aria-expanded', 'true');
+      }
+      function closeSidebar() {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('open');
+        hamburgerBtn.setAttribute('aria-expanded', 'false');
+      }
+      hamburgerBtn.addEventListener('click', openSidebar);
+      backdrop.addEventListener('click', closeSidebar);
+      sidebar.querySelectorAll('.nav-item').forEach(function (el) {
+        el.addEventListener('click', closeSidebar);
+      });
+
+      // ── Auth helpers ─────────────────────────────────────────────────────
+      async function authFetch(url, options) {
+        options = options || {};
+        const res = await fetch(url, {
+          ...options,
+          headers: { ...(options.headers || {}), Authorization: 'Bearer ' + token },
+        });
+        if (res.status === 401) { signOut(); }
+        return res;
+      }
+
+      function signOut() {
+        localStorage.removeItem('admin_token');
+        window.location.replace('/admin/login.html');
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', signOut);
+
+      authFetch('/api/auth/verify')
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (data) {
+          document.getElementById('sidebar-email').textContent = data.email;
+          document.getElementById('topbar-email').textContent  = data.email;
+        })
+        .catch(signOut);
+
+      // ── State ────────────────────────────────────────────────────────────
+      var allExpenses  = [];
+      var editingId    = null;
+
+      // ── Helpers ──────────────────────────────────────────────────────────
+      function esc(str) {
+        return String(str)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      function formatCurrency(val) {
+        return '£' + Number(val).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      function formatDate(str) {
+        if (!str) return '—';
+        var parts = str.slice(0, 10).split('-');
+        if (parts.length < 3) return str;
+        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+          .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+
+      function categoryBadge(cat) {
+        return '<span class="badge badge-' + esc(cat) + '">' + esc(cat) + '</span>';
+      }
+
+      // ── Filters ──────────────────────────────────────────────────────────
+      document.getElementById('category-filter').addEventListener('change', renderExpenses);
+      document.getElementById('from-filter').addEventListener('change', renderExpenses);
+      document.getElementById('to-filter').addEventListener('change', renderExpenses);
+
+      // ── Load & render ─────────────────────────────────────────────────────
+      function loadExpenses() {
+        return authFetch('/api/admin/expenses')
+          .then(function (res) { return res.ok ? res.json() : Promise.reject(); })
+          .then(function (data) { allExpenses = data; renderExpenses(); })
+          .catch(function () { allExpenses = []; renderExpenses(); });
+      }
+
+      function renderExpenses() {
+        var catFilter  = document.getElementById('category-filter').value;
+        var fromFilter = document.getElementById('from-filter').value;
+        var toFilter   = document.getElementById('to-filter').value;
+
+        var rows = allExpenses.filter(function (e) {
+          if (catFilter  && e.category !== catFilter)         return false;
+          if (fromFilter && e.expense_date < fromFilter)      return false;
+          if (toFilter   && e.expense_date > toFilter)        return false;
+          return true;
+        });
+
+        // Summary cards
+        var now   = new Date();
+        var ym    = now.toISOString().slice(0, 7);
+        var year  = now.toISOString().slice(0, 4);
+
+        var totalAll   = rows.reduce(function (s, e) { return s + e.amount; }, 0);
+        var totalMonth = rows.filter(function (e) { return e.expense_date.slice(0, 7) === ym; })
+                             .reduce(function (s, e) { return s + e.amount; }, 0);
+        var totalYear  = rows.filter(function (e) { return e.expense_date.slice(0, 4) === year; })
+                             .reduce(function (s, e) { return s + e.amount; }, 0);
+
+        document.getElementById('summary-total').textContent = formatCurrency(totalAll);
+        document.getElementById('summary-month').textContent = formatCurrency(totalMonth);
+        document.getElementById('summary-year').textContent  = formatCurrency(totalYear);
+        document.getElementById('summary-count').textContent = rows.length;
+        document.getElementById('expense-count').textContent =
+          rows.length === 1 ? '1 expense' : rows.length + ' expenses';
+
+        var tbody = document.getElementById('expenses-tbody');
+        if (rows.length === 0) {
+          tbody.innerHTML = '';
+          document.getElementById('empty-state').style.display = 'block';
+          document.getElementById('expenses-table').style.display = 'none';
+          return;
+        }
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('expenses-table').style.display = '';
+
+        tbody.innerHTML = rows.map(function (e) {
+          return '<tr>' +
+            '<td>' + esc(e.title) + '</td>' +
+            '<td>' + categoryBadge(e.category) + '</td>' +
+            '<td class="currency-cell">' + esc(formatCurrency(e.amount)) + '</td>' +
+            '<td class="date-cell">' + esc(formatDate(e.expense_date)) + '</td>' +
+            '<td class="muted">' + (e.notes ? esc(e.notes) : '—') + '</td>' +
+            '<td>' +
+              '<button class="action-btn edit-btn" data-id="' + e.id + '">Edit</button>' +
+              '<button class="action-btn del-btn"  data-id="' + e.id + '">Delete</button>' +
+            '</td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      // ── Row actions ───────────────────────────────────────────────────────
+      document.getElementById('expenses-tbody').addEventListener('click', function (ev) {
+        var btn = ev.target.closest('button');
+        if (!btn) return;
+        var id = Number(btn.dataset.id);
+        if (btn.classList.contains('edit-btn')) {
+          openEditModal(id);
+        } else if (btn.classList.contains('del-btn')) {
+          deleteExpense(id);
+        }
+      });
+
+      // ── Modal open helpers ────────────────────────────────────────────────
+      function openAddModal() {
+        editingId = null;
+        document.getElementById('expense-modal-title').textContent = 'Add Expense';
+        document.getElementById('exp-title').value    = '';
+        document.getElementById('exp-amount').value   = '';
+        document.getElementById('exp-date').value     = new Date().toISOString().slice(0, 10);
+        document.getElementById('exp-category').value = 'other';
+        document.getElementById('exp-notes').value    = '';
+        hideFormError();
+        document.getElementById('expense-modal-overlay').classList.add('open');
+        document.getElementById('exp-title').focus();
+      }
+
+      function openEditModal(id) {
+        var expense = allExpenses.find(function (e) { return e.id === id; });
+        if (!expense) return;
+        editingId = id;
+        document.getElementById('expense-modal-title').textContent = 'Edit Expense';
+        document.getElementById('exp-title').value    = expense.title;
+        document.getElementById('exp-amount').value   = expense.amount;
+        document.getElementById('exp-date').value     = expense.expense_date.slice(0, 10);
+        document.getElementById('exp-category').value = expense.category;
+        document.getElementById('exp-notes').value    = expense.notes || '';
+        hideFormError();
+        document.getElementById('expense-modal-overlay').classList.add('open');
+        document.getElementById('exp-title').focus();
+      }
+
+      function closeModal() {
+        document.getElementById('expense-modal-overlay').classList.remove('open');
+      }
+
+      document.getElementById('add-expense-btn').addEventListener('click', openAddModal);
+      document.getElementById('exp-modal-cancel').addEventListener('click', closeModal);
+      document.getElementById('expense-modal-overlay').addEventListener('click', function (ev) {
+        if (ev.target === this) closeModal();
+      });
+
+      // ── Form error helpers ────────────────────────────────────────────────
+      function showFormError(msg) {
+        var el = document.getElementById('exp-form-error');
+        el.textContent = msg;
+        el.classList.add('visible');
+      }
+      function hideFormError() {
+        var el = document.getElementById('exp-form-error');
+        el.textContent = '';
+        el.classList.remove('visible');
+      }
+
+      // ── Save ──────────────────────────────────────────────────────────────
+      document.getElementById('exp-modal-save').addEventListener('click', function () {
+        var title   = document.getElementById('exp-title').value.trim();
+        var amount  = document.getElementById('exp-amount').value.trim();
+        var date    = document.getElementById('exp-date').value.trim();
+        var cat     = document.getElementById('exp-category').value;
+        var notes   = document.getElementById('exp-notes').value.trim();
+
+        if (!title)  { showFormError('Title is required.'); return; }
+        if (!amount || isNaN(parseFloat(amount))) { showFormError('A valid amount is required.'); return; }
+        if (!date)   { showFormError('Date is required.'); return; }
+
+        var saveBtn = document.getElementById('exp-modal-save');
+        saveBtn.disabled = true;
+        hideFormError();
+
+        var body = JSON.stringify({ title: title, amount: parseFloat(amount), category: cat, expense_date: date, notes: notes || null });
+        var url    = editingId ? '/api/admin/expenses/' + editingId : '/api/admin/expenses';
+        var method = editingId ? 'PUT' : 'POST';
+
+        authFetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: body })
+          .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
+          .then(function (result) {
+            if (!result.ok) { showFormError(result.data.error || 'Save failed.'); return; }
+            closeModal();
+            loadExpenses();
+          })
+          .catch(function () { showFormError('Network error. Please try again.'); })
+          .finally(function () { saveBtn.disabled = false; });
+      });
+
+      // ── Delete ────────────────────────────────────────────────────────────
+      function deleteExpense(id) {
+        var expense = allExpenses.find(function (e) { return e.id === id; });
+        if (!expense) return;
+        if (!confirm('Delete "' + expense.title + '"? This cannot be undone.')) return;
+        authFetch('/api/admin/expenses/' + id, { method: 'DELETE' })
+          .then(function (res) { if (res.ok) { loadExpenses(); } })
+          .catch(function () { alert('Delete failed. Please try again.'); });
+      }
+
+      // ── Initial load ──────────────────────────────────────────────────────
+      loadExpenses();
+    })();
+  </script>
+</body>
+</html>
