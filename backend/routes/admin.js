@@ -1064,4 +1064,113 @@ router.put('/settings', (req, res) => {
   return res.json(settings);
 });
 
+// ── Expenses routes ────────────────────────────────────────────────────────
+
+const EXPENSE_CATEGORIES = ['software', 'hardware', 'hosting', 'marketing', 'travel', 'utilities', 'office', 'other'];
+
+// GET /api/admin/expenses – list all expenses (with optional filters)
+router.get('/expenses', (req, res) => {
+  const { category, from, to } = req.query;
+
+  let query = 'SELECT * FROM expenses WHERE 1=1';
+  const params = [];
+
+  if (category && EXPENSE_CATEGORIES.includes(category)) {
+    query += ' AND category = ?';
+    params.push(category);
+  }
+  if (from) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from))) {
+      return res.status(400).json({ error: 'from must be a valid date (YYYY-MM-DD).' });
+    }
+    query += ' AND expense_date >= ?';
+    params.push(String(from));
+  }
+  if (to) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(to))) {
+      return res.status(400).json({ error: 'to must be a valid date (YYYY-MM-DD).' });
+    }
+    query += ' AND expense_date <= ?';
+    params.push(String(to));
+  }
+
+  query += ' ORDER BY expense_date DESC, id DESC';
+
+  const rows = db.prepare(query).all(...params);
+  return res.json(rows);
+});
+
+// POST /api/admin/expenses – create an expense
+router.post('/expenses', (req, res) => {
+  const { title, amount, category, expense_date, notes } = req.body || {};
+
+  if (!title || typeof title !== 'string' || title.trim().length < 1) {
+    return res.status(400).json({ error: 'title is required.' });
+  }
+  if (amount === undefined || amount === null || !Number.isFinite(parseFloat(amount))) {
+    return res.status(400).json({ error: 'amount must be a valid number.' });
+  }
+  if (!expense_date || typeof expense_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expense_date.trim())) {
+    return res.status(400).json({ error: 'expense_date is required (YYYY-MM-DD).' });
+  }
+  const cat = (category && EXPENSE_CATEGORIES.includes(category)) ? category : 'other';
+
+  const result = db.prepare(`
+    INSERT INTO expenses (title, amount, category, expense_date, notes)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(
+    title.trim(),
+    parseFloat(amount),
+    cat,
+    expense_date.trim(),
+    notes ? String(notes).trim() : null,
+  );
+
+  const created = db.prepare('SELECT * FROM expenses WHERE id = ?').get(result.lastInsertRowid);
+  return res.status(201).json(created);
+});
+
+// PUT /api/admin/expenses/:id – update an expense
+router.put('/expenses/:id', (req, res) => {
+  const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
+  if (!expense) return res.status(404).json({ error: 'Expense not found.' });
+
+  const { title, amount, category, expense_date, notes } = req.body || {};
+
+  if (title !== undefined && (typeof title !== 'string' || title.trim().length < 1)) {
+    return res.status(400).json({ error: 'title cannot be blank.' });
+  }
+  if (amount !== undefined && (amount === null || !Number.isFinite(parseFloat(amount)))) {
+    return res.status(400).json({ error: 'amount must be a valid number.' });
+  }
+  if (expense_date !== undefined && (typeof expense_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expense_date.trim()))) {
+    return res.status(400).json({ error: 'expense_date must be YYYY-MM-DD.' });
+  }
+
+  const updated = {
+    title:        title        !== undefined ? title.trim()                                              : expense.title,
+    amount:       amount       !== undefined ? parseFloat(amount)                                        : expense.amount,
+    category:     (category && EXPENSE_CATEGORIES.includes(category)) ? category                        : expense.category,
+    expense_date: expense_date !== undefined ? expense_date.trim()                                       : expense.expense_date,
+    notes:        notes        !== undefined ? (notes ? String(notes).trim() : null)                     : expense.notes,
+  };
+
+  db.prepare(`
+    UPDATE expenses
+    SET title = ?, amount = ?, category = ?, expense_date = ?, notes = ?,
+        updated_at = datetime('now')
+    WHERE id = ?
+  `).run(updated.title, updated.amount, updated.category, updated.expense_date, updated.notes, expense.id);
+
+  const row = db.prepare('SELECT * FROM expenses WHERE id = ?').get(expense.id);
+  return res.json(row);
+});
+
+// DELETE /api/admin/expenses/:id – delete an expense
+router.delete('/expenses/:id', (req, res) => {
+  const result = db.prepare('DELETE FROM expenses WHERE id = ?').run(req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'Expense not found.' });
+  return res.json({ success: true });
+});
+
 module.exports = router;

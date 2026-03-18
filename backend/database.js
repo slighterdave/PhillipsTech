@@ -107,6 +107,17 @@ db.exec(`
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS expenses (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT    NOT NULL,
+    amount      REAL    NOT NULL DEFAULT 0,
+    category    TEXT    NOT NULL DEFAULT 'other',
+    expense_date TEXT   NOT NULL,
+    notes       TEXT,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Migration: add address column to existing databases that pre-date this schema change
