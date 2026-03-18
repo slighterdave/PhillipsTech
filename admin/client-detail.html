@@ -370,6 +370,40 @@
       display: none;
     }
     .form-error.visible { display: block; }
+    .form-group .field-error { color: var(--danger); font-size: .78rem; }
+
+    /* ── Services checklist ── */
+    .services-checklist {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .5rem .75rem;
+      min-height: 42px;
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+    }
+    .service-check-item {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .875rem;
+      cursor: pointer;
+    }
+    .service-check-item input[type="checkbox"] {
+      width: auto;
+      cursor: pointer;
+    }
+    .service-check-item .svc-price {
+      margin-left: auto;
+      color: var(--text-muted);
+      font-size: .8rem;
+      white-space: nowrap;
+    }
+    .services-empty {
+      color: var(--text-muted);
+      font-size: .8rem;
+      font-style: italic;
+    }
 
     /* ── Invoice preview modal ── */
     .invoice-modal { max-width: 820px; }
@@ -736,6 +770,76 @@
     </div>
   </div>
 
+  <!-- Edit Client modal -->
+  <div class="modal-overlay" id="edit-client-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-client-modal-title">
+    <div class="modal">
+      <h4 id="edit-client-modal-title">Edit Client</h4>
+      <form id="edit-client-form" novalidate>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="ec-name">Name <span aria-hidden="true">*</span></label>
+            <input type="text" id="ec-name" name="name" required autocomplete="off" />
+            <span class="field-error" id="ec-err-name"></span>
+          </div>
+          <div class="form-group">
+            <label for="ec-company">Company</label>
+            <input type="text" id="ec-company" name="company" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="ec-email">Email <span aria-hidden="true">*</span></label>
+            <input type="email" id="ec-email" name="email" required autocomplete="off" />
+            <span class="field-error" id="ec-err-email"></span>
+          </div>
+          <div class="form-group">
+            <label for="ec-phone">Phone</label>
+            <input type="tel" id="ec-phone" name="phone" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="ec-contract-value">Contract Value (£)</label>
+            <input type="number" id="ec-contract-value" name="contract_value" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label for="ec-payment-schedule">Payment Schedule</label>
+            <select id="ec-payment-schedule" name="payment_schedule">
+              <option value="">— Select —</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Monthly">Monthly</option>
+              <option value="Quarterly">Quarterly</option>
+              <option value="Bi-annually">Bi-annually</option>
+              <option value="Annually">Annually</option>
+              <option value="On completion">On completion</option>
+              <option value="Custom">Custom</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="ec-last-invoice">Last Invoice Date</label>
+            <input type="date" id="ec-last-invoice" name="last_invoice_date" />
+          </div>
+          <div class="form-group full">
+            <label for="ec-address">Address</label>
+            <textarea id="ec-address" name="address" rows="3" placeholder="Street&#10;City&#10;Postcode"></textarea>
+          </div>
+          <div class="form-group full">
+            <label for="ec-notes">Notes</label>
+            <textarea id="ec-notes" name="notes" rows="3"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Services</label>
+            <div id="ec-services-checklist" class="services-checklist">
+              <span class="services-empty">Loading services…</span>
+            </div>
+            <span style="font-size:.78rem;color:var(--text-muted);margin-top:.25rem;display:block">Select the services that apply to this client.</span>
+          </div>
+        </div>
+        <div class="form-error" id="ec-form-error"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="ec-modal-cancel">Cancel</button>
+          <button type="submit" class="btn-save" id="ec-modal-save">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     (function () {
       const token = localStorage.getItem('admin_token');
@@ -883,7 +987,7 @@
             </td>
           `;
           tr.querySelector('.pay-btn').addEventListener('click', () => toggleInvoicePaid(inv.id));
-          tr.querySelector('.pdf-btn').addEventListener('click', () => downloadInvoicePdf());
+          tr.querySelector('.pdf-btn').addEventListener('click', () => downloadInvoicePdf(inv));
           tr.querySelector('.del-btn').addEventListener('click', () => {
             if (confirm(`Delete invoice "${inv.invoice_num}"?`)) deleteInvoice(inv.id);
           });
@@ -903,7 +1007,20 @@
         loadInvoices();
       }
 
-      async function downloadInvoicePdf() {
+      async function downloadInvoicePdf(inv) {
+        const res = await authFetch(`/api/admin/clients/${clientId}/invoices/${inv.id}/pdf`);
+        if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Could not generate PDF.'); return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        const cd  = res.headers.get('Content-Disposition') || '';
+        const m   = cd.match(/filename="?([^"]+)"?/);
+        a.download = m ? m[1] : `${inv.invoice_num}.pdf`;
+        a.href = url; a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      async function generateAndSaveInvoicePdf() {
         const res = await authFetch(`/api/admin/clients/${clientId}/invoice`, { method: 'POST' });
         if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Could not generate PDF.'); return; }
         const blob = await res.blob();
@@ -989,7 +1106,7 @@
       document.getElementById('invoice-download-btn').addEventListener('click', async () => {
         const btn = document.getElementById('invoice-download-btn');
         btn.disabled = true; btn.textContent = '…';
-        await downloadInvoicePdf();
+        await generateAndSaveInvoicePdf();
         btn.disabled = false; btn.textContent = '⬇ Save';
         closeInvoiceModal();
       });
@@ -1272,7 +1389,123 @@
         loadProjects();
       }
 
+      // ── Edit Client modal ────────────────────────────────────────────────
+      let editClientServices = [];
+      const editClientOverlay = document.getElementById('edit-client-modal-overlay');
+      const editClientForm    = document.getElementById('edit-client-form');
+
+      function openEditClientModal() {
+        if (!currentClient) return;
+        const c = currentClient;
+        document.getElementById('ec-name').value             = c.name || '';
+        document.getElementById('ec-company').value          = c.company || '';
+        document.getElementById('ec-email').value            = c.email || '';
+        document.getElementById('ec-phone').value            = c.phone || '';
+        document.getElementById('ec-contract-value').value   = c.contract_value != null ? c.contract_value : '';
+        document.getElementById('ec-payment-schedule').value = c.payment_schedule || '';
+        document.getElementById('ec-last-invoice').value     = c.last_invoice_date || '';
+        document.getElementById('ec-address').value          = c.address || '';
+        document.getElementById('ec-notes').value            = c.notes || '';
+        document.getElementById('ec-err-name').textContent   = '';
+        document.getElementById('ec-err-email').textContent  = '';
+        document.getElementById('ec-form-error').textContent = '';
+        document.getElementById('ec-form-error').classList.remove('visible');
+        renderEditServicesChecklist(c.service_ids || []);
+        editClientOverlay.classList.add('open');
+        document.getElementById('ec-name').focus();
+      }
+
+      function renderEditServicesChecklist(selectedIds) {
+        const checklist = document.getElementById('ec-services-checklist');
+        checklist.innerHTML = '';
+        if (editClientServices.length === 0) {
+          checklist.innerHTML = '<span class="services-empty">No services defined yet. <a href="services.html">Add services</a> first.</span>';
+          return;
+        }
+        editClientServices.forEach(svc => {
+          const label = document.createElement('label');
+          label.className = 'service-check-item';
+          const checked = selectedIds.includes(svc.id) ? 'checked' : '';
+          label.innerHTML = `
+            <input type="checkbox" name="ec_service_ids" value="${svc.id}" ${checked} />
+            <span>${esc(svc.name)}</span>
+            ${svc.description ? `<span style="color:var(--text-muted);font-size:.8rem">– ${esc(svc.description)}</span>` : ''}
+            <span class="svc-price">${formatCurrency(svc.unit_price)}</span>
+          `;
+          checklist.appendChild(label);
+        });
+      }
+
+      function closeEditClientModal() {
+        editClientOverlay.classList.remove('open');
+      }
+
+      document.getElementById('edit-client-btn').addEventListener('click', openEditClientModal);
+      document.getElementById('ec-modal-cancel').addEventListener('click', closeEditClientModal);
+      editClientOverlay.addEventListener('click', e => { if (e.target === editClientOverlay) closeEditClientModal(); });
+
+      editClientForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const name  = document.getElementById('ec-name').value.trim();
+        const email = document.getElementById('ec-email').value.trim();
+        let valid = true;
+        document.getElementById('ec-err-name').textContent  = '';
+        document.getElementById('ec-err-email').textContent = '';
+        document.getElementById('ec-form-error').classList.remove('visible');
+
+        if (!name) { document.getElementById('ec-err-name').textContent = 'Name is required.'; valid = false; }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          document.getElementById('ec-err-email').textContent = 'A valid email is required.'; valid = false;
+        }
+        if (!valid) return;
+
+        const contractVal  = document.getElementById('ec-contract-value').value;
+        const checkedBoxes = editClientForm.querySelectorAll('input[name="ec_service_ids"]:checked');
+        const payload = {
+          name,
+          email,
+          phone:             document.getElementById('ec-phone').value.trim() || null,
+          company:           document.getElementById('ec-company').value.trim() || null,
+          address:           document.getElementById('ec-address').value.trim() || null,
+          contract_value:    contractVal !== '' ? parseFloat(contractVal) : null,
+          payment_schedule:  document.getElementById('ec-payment-schedule').value || null,
+          last_invoice_date: document.getElementById('ec-last-invoice').value || null,
+          notes:             document.getElementById('ec-notes').value.trim() || null,
+          service_ids:       Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10)),
+        };
+
+        const saveBtn = document.getElementById('ec-modal-save');
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+        try {
+          const res = await authFetch(`/api/admin/clients/${clientId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            const errEl = document.getElementById('ec-form-error');
+            errEl.textContent = data.error || 'An error occurred. Please try again.';
+            errEl.classList.add('visible');
+          } else {
+            closeEditClientModal();
+            await loadClient();
+          }
+        } catch {
+          const errEl = document.getElementById('ec-form-error');
+          errEl.textContent = 'Network error. Please try again.';
+          errEl.classList.add('visible');
+        } finally {
+          saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';
+        }
+      });
+
       // ── Init ──────────────────────────────────────────────────────────────
+      authFetch('/api/admin/services')
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { editClientServices = data || []; })
+        .catch(() => { editClientServices = []; });
+
       loadClient().then(() => {
         loadInvoices();
         loadContacts();
