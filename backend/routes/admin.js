@@ -525,6 +525,16 @@ function loadInvoiceData(clientId) {
   return { client, selectedServices, siteSettings };
 }
 
+// Helper: calculate the amount for an invoice from client + selected services
+function calcInvoiceAmount(client, selectedServices) {
+  if (selectedServices.length > 0) {
+    return selectedServices.reduce((sum, s) => sum + Number(s.unit_price), 0);
+  }
+  const scheduleMultiplier = { Weekly: 52, Monthly: 12, Quarterly: 4, 'Bi-annually': 2, Annually: 1, 'On completion': 1 };
+  const divisor = scheduleMultiplier[client.payment_schedule] || 1;
+  return client.contract_value / divisor;
+}
+
 // GET /api/admin/clients/:id/invoice/preview – generate invoice PDF for preview (no date stamp)
 router.get('/clients/:id/invoice/preview', (req, res) => {
   const data = loadInvoiceData(req.params.id);
@@ -563,8 +573,22 @@ router.post('/clients/:id/invoice', (req, res) => {
   const todayStr = today.toISOString().slice(0, 10);
   const invoiceNum = `INV-${todayStr.replace(/-/g, '')}-${String(client.id).padStart(4, '0')}`;
 
+  // Calculate invoice amount
+  let invoiceAmount = 0;
+  if (selectedServices.length > 0) {
+    invoiceAmount = selectedServices.reduce((sum, s) => sum + Number(s.unit_price), 0);
+  } else {
+    const scheduleMultiplier = { Weekly: 52, Monthly: 12, Quarterly: 4, 'Bi-annually': 2, Annually: 1, 'On completion': 1 };
+    const divisor = scheduleMultiplier[client.payment_schedule] || 1;
+    invoiceAmount = client.contract_value / divisor;
+  }
+
   db.prepare(`UPDATE clients SET last_invoice_date = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(todayStr, client.id);
+
+  // Persist invoice record
+  db.prepare(`INSERT INTO invoices (client_id, invoice_num, amount, issued_date) VALUES (?, ?, ?, ?)`)
+    .run(client.id, invoiceNum, invoiceAmount, todayStr);
 
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
   res.setHeader('Content-Type', 'application/pdf');
@@ -639,6 +663,11 @@ router.post('/clients/:id/invoice/send', async (req, res) => {
   db.prepare(`UPDATE clients SET last_invoice_date = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(todayStr, client.id);
 
+  // Persist invoice record
+  const invoiceAmount = calcInvoiceAmount(client, selectedServices);
+  db.prepare(`INSERT INTO invoices (client_id, invoice_num, amount, issued_date) VALUES (?, ?, ?, ?)`)
+    .run(client.id, invoiceNum, invoiceAmount, todayStr);
+
   return res.json({ success: true, invoiceNum, sentTo: client.email });
 });
 
@@ -646,6 +675,259 @@ router.post('/clients/:id/invoice/send', async (req, res) => {
 router.delete('/clients/:id', (req, res) => {
   const result = db.prepare('DELETE FROM clients WHERE id = ?').run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Client not found.' });
+  return res.json({ success: true });
+});
+
+// ── Invoice history routes ─────────────────────────────────────────────────
+
+// GET /api/admin/clients/:id/invoices – list invoices for a client
+router.get('/clients/:id/invoices', (req, res) => {
+  const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+  const rows = db.prepare('SELECT * FROM invoices WHERE client_id = ? ORDER BY issued_date DESC, id DESC').all(req.params.id);
+  return res.json(rows);
+});
+
+// GET /api/admin/invoices – list all invoices (optionally filtered by client)
+router.get('/invoices', (req, res) => {
+  const clientId = req.query.client_id ? parseInt(req.query.client_id, 10) : null;
+  let rows;
+  if (clientId) {
+    rows = db.prepare(`
+      SELECT i.*, c.name AS client_name, c.company AS client_company
+      FROM invoices i JOIN clients c ON c.id = i.client_id
+      WHERE i.client_id = ? ORDER BY i.issued_date DESC, i.id DESC
+    `).all(clientId);
+  } else {
+    rows = db.prepare(`
+      SELECT i.*, c.name AS client_name, c.company AS client_company
+      FROM invoices i JOIN clients c ON c.id = i.client_id
+      ORDER BY i.issued_date DESC, i.id DESC
+    `).all();
+  }
+  return res.json(rows);
+});
+
+// POST /api/admin/clients/:id/invoices – manually create an invoice record
+router.post('/clients/:id/invoices', (req, res) => {
+  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+
+  const { invoice_num, amount, issued_date, notes } = req.body || {};
+  if (!invoice_num || typeof invoice_num !== 'string' || invoice_num.trim().length < 1) {
+    return res.status(400).json({ error: 'invoice_num is required.' });
+  }
+  if (amount === undefined || amount === null || !Number.isFinite(Number(amount))) {
+    return res.status(400).json({ error: 'A valid amount is required.' });
+  }
+  const dateStr = issued_date ? String(issued_date).trim() : new Date().toISOString().slice(0, 10);
+
+  const result = db.prepare(`
+    INSERT INTO invoices (client_id, invoice_num, amount, issued_date, notes)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(req.params.id, invoice_num.trim(), Number(amount), dateStr, notes ? String(notes).trim() : null);
+
+  const created = db.prepare('SELECT * FROM invoices WHERE id = ?').get(result.lastInsertRowid);
+  return res.status(201).json(created);
+});
+
+// PATCH /api/admin/clients/:clientId/invoices/:invId/paid – toggle paid status
+router.patch('/clients/:clientId/invoices/:invId/paid', (req, res) => {
+  const inv = db.prepare('SELECT * FROM invoices WHERE id = ? AND client_id = ?').get(req.params.invId, req.params.clientId);
+  if (!inv) return res.status(404).json({ error: 'Invoice not found.' });
+
+  const paid = inv.paid ? 0 : 1;
+  const paidDate = paid ? new Date().toISOString().slice(0, 10) : null;
+  db.prepare('UPDATE invoices SET paid = ?, paid_date = ? WHERE id = ?').run(paid, paidDate, inv.id);
+
+  const updated = db.prepare('SELECT * FROM invoices WHERE id = ?').get(inv.id);
+  return res.json(updated);
+});
+
+// DELETE /api/admin/clients/:clientId/invoices/:invId – delete an invoice record
+router.delete('/clients/:clientId/invoices/:invId', (req, res) => {
+  const result = db.prepare('DELETE FROM invoices WHERE id = ? AND client_id = ?').run(req.params.invId, req.params.clientId);
+  if (result.changes === 0) return res.status(404).json({ error: 'Invoice not found.' });
+  return res.json({ success: true });
+});
+
+// ── Contact log routes ─────────────────────────────────────────────────────
+
+// GET /api/admin/clients/:id/contact-log
+router.get('/clients/:id/contact-log', (req, res) => {
+  const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+  const rows = db.prepare('SELECT * FROM contact_log WHERE client_id = ? ORDER BY occurred_at DESC, id DESC').all(req.params.id);
+  return res.json(rows);
+});
+
+// POST /api/admin/clients/:id/contact-log
+router.post('/clients/:id/contact-log', (req, res) => {
+  const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+
+  const { type, summary, occurred_at } = req.body || {};
+  if (!summary || typeof summary !== 'string' || summary.trim().length < 1) {
+    return res.status(400).json({ error: 'summary is required.' });
+  }
+  const validTypes = ['call', 'email', 'meeting', 'note'];
+  const logType = (type && validTypes.includes(type)) ? type : 'note';
+  const dateStr = occurred_at ? String(occurred_at).trim() : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  const result = db.prepare(`
+    INSERT INTO contact_log (client_id, type, summary, occurred_at) VALUES (?, ?, ?, ?)
+  `).run(req.params.id, logType, summary.trim(), dateStr);
+
+  const created = db.prepare('SELECT * FROM contact_log WHERE id = ?').get(result.lastInsertRowid);
+  return res.status(201).json(created);
+});
+
+// PUT /api/admin/clients/:clientId/contact-log/:logId
+router.put('/clients/:clientId/contact-log/:logId', (req, res) => {
+  const entry = db.prepare('SELECT * FROM contact_log WHERE id = ? AND client_id = ?').get(req.params.logId, req.params.clientId);
+  if (!entry) return res.status(404).json({ error: 'Entry not found.' });
+
+  const { type, summary, occurred_at } = req.body || {};
+  const validTypes = ['call', 'email', 'meeting', 'note'];
+  const updated = {
+    type:        (type && validTypes.includes(type)) ? type : entry.type,
+    summary:     summary !== undefined ? (summary ? String(summary).trim() : entry.summary) : entry.summary,
+    occurred_at: occurred_at !== undefined ? String(occurred_at).trim() : entry.occurred_at,
+  };
+  db.prepare('UPDATE contact_log SET type = ?, summary = ?, occurred_at = ? WHERE id = ?')
+    .run(updated.type, updated.summary, updated.occurred_at, entry.id);
+
+  const row = db.prepare('SELECT * FROM contact_log WHERE id = ?').get(entry.id);
+  return res.json(row);
+});
+
+// DELETE /api/admin/clients/:clientId/contact-log/:logId
+router.delete('/clients/:clientId/contact-log/:logId', (req, res) => {
+  const result = db.prepare('DELETE FROM contact_log WHERE id = ? AND client_id = ?').run(req.params.logId, req.params.clientId);
+  if (result.changes === 0) return res.status(404).json({ error: 'Entry not found.' });
+  return res.json({ success: true });
+});
+
+// ── Work log routes ────────────────────────────────────────────────────────
+
+// GET /api/admin/clients/:id/work-log
+router.get('/clients/:id/work-log', (req, res) => {
+  const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+  const rows = db.prepare('SELECT * FROM work_log WHERE client_id = ? ORDER BY occurred_at DESC, id DESC').all(req.params.id);
+  return res.json(rows);
+});
+
+// POST /api/admin/clients/:id/work-log
+router.post('/clients/:id/work-log', (req, res) => {
+  const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+
+  const { description, hours, occurred_at } = req.body || {};
+  if (!description || typeof description !== 'string' || description.trim().length < 1) {
+    return res.status(400).json({ error: 'description is required.' });
+  }
+  const hoursVal = (hours !== undefined && hours !== null && Number.isFinite(Number(hours))) ? Number(hours) : null;
+  const dateStr = occurred_at ? String(occurred_at).trim() : new Date().toISOString().slice(0, 10);
+
+  const result = db.prepare(`
+    INSERT INTO work_log (client_id, description, hours, occurred_at) VALUES (?, ?, ?, ?)
+  `).run(req.params.id, description.trim(), hoursVal, dateStr);
+
+  const created = db.prepare('SELECT * FROM work_log WHERE id = ?').get(result.lastInsertRowid);
+  return res.status(201).json(created);
+});
+
+// PUT /api/admin/clients/:clientId/work-log/:logId
+router.put('/clients/:clientId/work-log/:logId', (req, res) => {
+  const entry = db.prepare('SELECT * FROM work_log WHERE id = ? AND client_id = ?').get(req.params.logId, req.params.clientId);
+  if (!entry) return res.status(404).json({ error: 'Entry not found.' });
+
+  const { description, hours, occurred_at } = req.body || {};
+  const updated = {
+    description: description !== undefined ? (description ? String(description).trim() : entry.description) : entry.description,
+    hours:       hours !== undefined ? (hours !== null && Number.isFinite(Number(hours)) ? Number(hours) : null) : entry.hours,
+    occurred_at: occurred_at !== undefined ? String(occurred_at).trim() : entry.occurred_at,
+  };
+  db.prepare('UPDATE work_log SET description = ?, hours = ?, occurred_at = ? WHERE id = ?')
+    .run(updated.description, updated.hours, updated.occurred_at, entry.id);
+
+  const row = db.prepare('SELECT * FROM work_log WHERE id = ?').get(entry.id);
+  return res.json(row);
+});
+
+// DELETE /api/admin/clients/:clientId/work-log/:logId
+router.delete('/clients/:clientId/work-log/:logId', (req, res) => {
+  const result = db.prepare('DELETE FROM work_log WHERE id = ? AND client_id = ?').run(req.params.logId, req.params.clientId);
+  if (result.changes === 0) return res.status(404).json({ error: 'Entry not found.' });
+  return res.json({ success: true });
+});
+
+// ── Projects routes ────────────────────────────────────────────────────────
+
+// GET /api/admin/clients/:id/projects
+router.get('/clients/:id/projects', (req, res) => {
+  const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+  const rows = db.prepare('SELECT * FROM projects WHERE client_id = ? ORDER BY updated_at DESC, id DESC').all(req.params.id);
+  return res.json(rows);
+});
+
+// POST /api/admin/clients/:id/projects
+router.post('/clients/:id/projects', (req, res) => {
+  const client = db.prepare('SELECT id FROM clients WHERE id = ?').get(req.params.id);
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+
+  const { name, description, status, start_date, end_date } = req.body || {};
+  if (!name || typeof name !== 'string' || name.trim().length < 1) {
+    return res.status(400).json({ error: 'name is required.' });
+  }
+  const validStatuses = ['active', 'completed', 'on-hold'];
+  const projStatus = (status && validStatuses.includes(status)) ? status : 'active';
+
+  const result = db.prepare(`
+    INSERT INTO projects (client_id, name, description, status, start_date, end_date)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    req.params.id,
+    name.trim(),
+    description ? String(description).trim() : null,
+    projStatus,
+    start_date ? String(start_date).trim() : null,
+    end_date   ? String(end_date).trim()   : null,
+  );
+
+  const created = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+  return res.status(201).json(created);
+});
+
+// PUT /api/admin/clients/:clientId/projects/:projId
+router.put('/clients/:clientId/projects/:projId', (req, res) => {
+  const proj = db.prepare('SELECT * FROM projects WHERE id = ? AND client_id = ?').get(req.params.projId, req.params.clientId);
+  if (!proj) return res.status(404).json({ error: 'Project not found.' });
+
+  const { name, description, status, start_date, end_date } = req.body || {};
+  const validStatuses = ['active', 'completed', 'on-hold'];
+  const updated = {
+    name:        name !== undefined        ? (name ? String(name).trim() : proj.name)                          : proj.name,
+    description: description !== undefined ? (description ? String(description).trim() : null)                 : proj.description,
+    status:      (status && validStatuses.includes(status)) ? status                                           : proj.status,
+    start_date:  start_date !== undefined  ? (start_date ? String(start_date).trim() : null)                   : proj.start_date,
+    end_date:    end_date !== undefined    ? (end_date   ? String(end_date).trim()   : null)                   : proj.end_date,
+  };
+  db.prepare(`
+    UPDATE projects SET name = ?, description = ?, status = ?, start_date = ?, end_date = ?,
+    updated_at = datetime('now') WHERE id = ?
+  `).run(updated.name, updated.description, updated.status, updated.start_date, updated.end_date, proj.id);
+
+  const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(proj.id);
+  return res.json(row);
+});
+
+// DELETE /api/admin/clients/:clientId/projects/:projId
+router.delete('/clients/:clientId/projects/:projId', (req, res) => {
+  const result = db.prepare('DELETE FROM projects WHERE id = ? AND client_id = ?').run(req.params.projId, req.params.clientId);
+  if (result.changes === 0) return res.status(404).json({ error: 'Project not found.' });
   return res.json({ success: true });
 });
 

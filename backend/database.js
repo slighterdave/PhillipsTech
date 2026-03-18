@@ -65,6 +65,48 @@ db.exec(`
     service_id  INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
     PRIMARY KEY (client_id, service_id)
   );
+
+  CREATE TABLE IF NOT EXISTS invoices (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id    INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    invoice_num  TEXT    NOT NULL,
+    amount       REAL    NOT NULL DEFAULT 0,
+    issued_date  TEXT    NOT NULL,
+    paid         INTEGER NOT NULL DEFAULT 0,
+    paid_date    TEXT,
+    notes        TEXT,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS contact_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id   INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    type        TEXT    NOT NULL DEFAULT 'note',
+    summary     TEXT    NOT NULL,
+    occurred_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS work_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id   INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    description TEXT    NOT NULL,
+    hours       REAL,
+    occurred_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS projects (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id   INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    name        TEXT    NOT NULL,
+    description TEXT,
+    status      TEXT    NOT NULL DEFAULT 'active',
+    start_date  TEXT,
+    end_date    TEXT,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Migration: add address column to existing databases that pre-date this schema change
