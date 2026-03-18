@@ -711,7 +711,7 @@
 
       async function downloadInvoicePdf(clientId, inv) {
         try {
-          const res = await authFetch(`/api/admin/clients/${clientId}/invoice`, { method: 'POST' });
+          const res = await authFetch(`/api/admin/clients/${clientId}/invoices/${inv.id}/pdf`);
           if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Could not generate PDF.'); return; }
           const blob = await res.blob();
           const url  = URL.createObjectURL(blob);
@@ -721,7 +721,6 @@
           a.download = match ? match[1] : `${inv.invoice_num}.pdf`;
           a.href = url; a.click();
           URL.revokeObjectURL(url);
-          await loadInvoices();
         } catch { alert('Network error generating PDF.'); }
       }
 

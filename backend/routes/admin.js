@@ -751,6 +751,26 @@ router.delete('/clients/:clientId/invoices/:invId', (req, res) => {
   return res.json({ success: true });
 });
 
+// GET /api/admin/clients/:clientId/invoices/:invId/pdf – download PDF for an existing invoice (no new record)
+router.get('/clients/:clientId/invoices/:invId/pdf', (req, res) => {
+  const inv = db.prepare('SELECT * FROM invoices WHERE id = ? AND client_id = ?').get(req.params.invId, req.params.clientId);
+  if (!inv) return res.status(404).json({ error: 'Invoice not found.' });
+
+  const data = loadInvoiceData(req.params.clientId);
+  if (!data) return res.status(404).json({ error: 'Client not found.' });
+
+  const { client, selectedServices, siteSettings } = data;
+
+  const issuedDate = inv.issued_date ? new Date(inv.issued_date + 'T00:00:00') : new Date();
+
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${inv.invoice_num}.pdf"`);
+  doc.pipe(res);
+  drawInvoice(doc, client, selectedServices, siteSettings, inv.invoice_num, issuedDate);
+  doc.end();
+});
+
 // ── Contact log routes ─────────────────────────────────────────────────────
 
 // GET /api/admin/clients/:id/contact-log
