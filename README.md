@@ -180,7 +180,7 @@ The backend runs as a systemd service (`phillipstech-backend`) managed automatic
 
    ```bash
    cd /var/www/phillipstech/backend
-   node seed.js your@email.com 'YourSecurePassword!'
+   node seed.js admin@example.com 'YourSecurePassword!'
    ```
 
 2. **Visit the admin portal:** `https://phillipstech.info/admin/login.html`
