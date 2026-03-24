@@ -771,6 +771,68 @@ router.get('/clients/:clientId/invoices/:invId/pdf', (req, res) => {
   doc.end();
 });
 
+// POST /api/admin/clients/:clientId/invoices/:invId/send – resend an existing invoice by email
+router.post('/clients/:clientId/invoices/:invId/send', async (req, res) => {
+  const inv = db.prepare('SELECT * FROM invoices WHERE id = ? AND client_id = ?').get(req.params.invId, req.params.clientId);
+  if (!inv) return res.status(404).json({ error: 'Invoice not found.' });
+
+  const data = loadInvoiceData(req.params.clientId);
+  if (!data) return res.status(404).json({ error: 'Client data not found.' });
+
+  const { client, selectedServices, siteSettings } = data;
+
+  const gmailUser = (siteSettings.gmail_user || '').trim();
+  const gmailPass = (siteSettings.gmail_app_password || '').trim();
+  if (!gmailUser || !gmailPass) {
+    return res.status(400).json({ error: 'Gmail credentials are not configured. Please add them in Settings.' });
+  }
+
+  const issuedDate = inv.issued_date ? new Date(inv.issued_date + 'T00:00:00') : new Date();
+
+  let pdfBuffer;
+  try {
+    pdfBuffer = await buildInvoiceBuffer(client, selectedServices, siteSettings, inv.invoice_num, issuedDate);
+  } catch (err) {
+    console.error('Invoice PDF generation failed:', err);
+    return res.status(500).json({ error: 'Failed to generate invoice PDF.' });
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: gmailUser, pass: gmailPass },
+  });
+
+  const recipientName = client.company || client.name;
+  const defaultEmailBody = `Dear ${recipientName},\n\nPlease find your invoice ${inv.invoice_num} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`;
+  const emailBody = (typeof req.body.email_body === 'string' && req.body.email_body.trim())
+    ? req.body.email_body.trim()
+    : defaultEmailBody;
+
+  const mailOptions = {
+    from: `PhillipsTech <${gmailUser}>`,
+    to: client.email,
+    subject: `Invoice ${inv.invoice_num} from PhillipsTech`,
+    text: emailBody,
+    attachments: [
+      { filename: `${inv.invoice_num}.pdf`, content: pdfBuffer, contentType: 'application/pdf' },
+    ],
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (err) {
+    console.error('Invoice resend email failed:', err);
+    const isAuthErr = err.responseCode === 535 || (err.code === 'EAUTH') ||
+      (typeof err.message === 'string' && err.message.toLowerCase().includes('invalid credentials'));
+    const hint = isAuthErr
+      ? 'Authentication failed — check that the Gmail address and App Password are correct in Settings.'
+      : 'Email could not be sent. Verify the Gmail credentials in Settings and ensure the account allows SMTP access.';
+    return res.status(502).json({ error: hint });
+  }
+
+  return res.json({ success: true, invoiceNum: inv.invoice_num, sentTo: client.email });
+});
+
 // ── Contact log routes ─────────────────────────────────────────────────────
 
 // GET /api/admin/clients/:id/contact-log
