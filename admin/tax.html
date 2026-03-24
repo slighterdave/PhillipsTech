@@ -503,8 +503,8 @@
     'use strict';
 
     // ── Auth helpers ────────────────────────────────────────────────────────────
-    function getToken() { return localStorage.getItem('auth_token'); }
-    function logout() { localStorage.removeItem('auth_token'); location.href = 'login.html'; }
+    function getToken() { return localStorage.getItem('admin_token'); }
+    function logout() { localStorage.removeItem('admin_token'); location.href = 'login.html'; }
 
     async function authFetch(url, opts = {}) {
       const token = getToken();
