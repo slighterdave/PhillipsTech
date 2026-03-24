@@ -287,6 +287,8 @@
     .action-btn.del-btn:hover { background: var(--danger); color: #fff; }
     .action-btn.pdf-btn  { color: var(--text-muted); border-color: var(--border); }
     .action-btn.pdf-btn:hover { background: var(--text-muted); color: #fff; }
+    .action-btn.resend-btn { color: #0d6efd; border-color: #0d6efd; }
+    .action-btn.resend-btn:hover { background: #0d6efd; color: #fff; }
 
     .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); }
 
@@ -987,11 +989,13 @@
             <td>
               <button class="action-btn pay-btn" title="${inv.paid ? 'Mark as unpaid' : 'Mark as paid'}">${inv.paid ? '↩ Unpaid' : '✓ Mark Paid'}</button>
               <button class="action-btn pdf-btn" title="Download PDF">📄 PDF</button>
+              <button class="action-btn resend-btn" title="Resend invoice by email">✉ Resend</button>
               <button class="action-btn del-btn" title="Delete">✕</button>
             </td>
           `;
           tr.querySelector('.pay-btn').addEventListener('click', () => toggleInvoicePaid(inv.id));
           tr.querySelector('.pdf-btn').addEventListener('click', () => downloadInvoicePdf(inv));
+          tr.querySelector('.resend-btn').addEventListener('click', () => resendInvoice(inv));
           tr.querySelector('.del-btn').addEventListener('click', () => {
             if (confirm(`Delete invoice "${inv.invoice_num}"?`)) deleteInvoice(inv.id);
           });
@@ -1024,6 +1028,13 @@
         URL.revokeObjectURL(url);
       }
 
+      function resendInvoice(inv) {
+        resendInvoiceTarget = { id: inv.id, invoice_num: inv.invoice_num };
+        document.getElementById('invoice-email-body').value = '';
+        invoiceOverlay.classList.add('open');
+        showInvoiceComposePane();
+      }
+
       async function generateAndSaveInvoicePdf() {
         const res = await authFetch(`/api/admin/clients/${clientId}/invoice`, { method: 'POST' });
         if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Could not generate PDF.'); return; }
@@ -1040,6 +1051,7 @@
 
       // ── Invoice generation (preview modal) ─────────────────────────────
       let currentPreviewBlobUrl = null;
+      let resendInvoiceTarget = null;  // holds {id, invoice_num} when resending a stored invoice
       const invoiceOverlay = document.getElementById('invoice-modal-overlay');
 
       document.getElementById('generate-invoice-btn').addEventListener('click', () => {
@@ -1049,6 +1061,7 @@
 
       function closeInvoiceModal() {
         invoiceOverlay.classList.remove('open');
+        resendInvoiceTarget = null;
         if (currentPreviewBlobUrl) { URL.revokeObjectURL(currentPreviewBlobUrl); currentPreviewBlobUrl = null; }
         const frame = document.getElementById('invoice-preview-frame');
         frame.src = ''; frame.style.display = 'none';
@@ -1066,10 +1079,10 @@
         document.getElementById('invoice-compose-send-btn').style.display = 'none';
       }
       function showInvoiceComposePane() {
-        const today = new Date();
-        const ts    = today.toISOString().slice(0, 10).replace(/-/g, '');
-        const num   = `INV-${ts}-${String(clientId).padStart(4, '0')}`;
         const name  = (currentClient && (currentClient.company || currentClient.name)) || 'Client';
+        const num   = resendInvoiceTarget
+          ? resendInvoiceTarget.invoice_num
+          : (() => { const ts = new Date().toISOString().slice(0, 10).replace(/-/g, ''); return `INV-${ts}-${String(clientId).padStart(4, '0')}`; })();
         const body  = `Dear ${name},\n\nPlease find your invoice ${num} attached.\n\nPayment is due within 14 days. Thank you for your business.\n\nKind regards,\nPhillipsTech`;
         const ta    = document.getElementById('invoice-email-body');
         if (!ta.value.trim()) ta.value = body;
@@ -1115,13 +1128,18 @@
         closeInvoiceModal();
       });
       document.getElementById('invoice-send-btn').addEventListener('click', () => showInvoiceComposePane());
-      document.getElementById('invoice-compose-back-btn').addEventListener('click', showInvoicePreviewPane);
+      document.getElementById('invoice-compose-back-btn').addEventListener('click', () => {
+        if (resendInvoiceTarget) { closeInvoiceModal(); } else { showInvoicePreviewPane(); }
+      });
       document.getElementById('invoice-compose-send-btn').addEventListener('click', async () => {
         const btn = document.getElementById('invoice-compose-send-btn');
         btn.disabled = true; btn.textContent = '…';
         const emailBody = document.getElementById('invoice-email-body').value;
+        const url = resendInvoiceTarget
+          ? `/api/admin/clients/${clientId}/invoices/${resendInvoiceTarget.id}/send`
+          : `/api/admin/clients/${clientId}/invoice/send`;
         try {
-          const res = await authFetch(`/api/admin/clients/${clientId}/invoice/send`, {
+          const res = await authFetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email_body: emailBody }),
