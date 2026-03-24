@@ -1128,7 +1128,8 @@ router.put('/settings', (req, res) => {
 
 // ── Expenses routes ────────────────────────────────────────────────────────
 
-const EXPENSE_CATEGORIES = ['software', 'hardware', 'hosting', 'marketing', 'travel', 'utilities', 'office', 'other'];
+const EXPENSE_CATEGORIES  = ['software', 'hardware', 'hosting', 'marketing', 'travel', 'utilities', 'office', 'other'];
+const EXPENSE_RECURRENCES = ['none', 'weekly', 'monthly', 'quarterly', 'yearly'];
 
 // GET /api/admin/expenses – list all expenses (with optional filters)
 router.get('/expenses', (req, res) => {
@@ -1164,7 +1165,7 @@ router.get('/expenses', (req, res) => {
 
 // POST /api/admin/expenses – create an expense
 router.post('/expenses', (req, res) => {
-  const { title, amount, category, expense_date, notes } = req.body || {};
+  const { title, amount, category, expense_date, notes, recurrence } = req.body || {};
 
   if (!title || typeof title !== 'string' || title.trim().length < 1) {
     return res.status(400).json({ error: 'title is required.' });
@@ -1176,16 +1177,18 @@ router.post('/expenses', (req, res) => {
     return res.status(400).json({ error: 'expense_date is required (YYYY-MM-DD).' });
   }
   const cat = (category && EXPENSE_CATEGORIES.includes(category)) ? category : 'other';
+  const rec = (recurrence && EXPENSE_RECURRENCES.includes(recurrence)) ? recurrence : 'none';
 
   const result = db.prepare(`
-    INSERT INTO expenses (title, amount, category, expense_date, notes)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO expenses (title, amount, category, expense_date, notes, recurrence)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).run(
     title.trim(),
     parseFloat(amount),
     cat,
     expense_date.trim(),
     notes ? String(notes).trim() : null,
+    rec,
   );
 
   const created = db.prepare('SELECT * FROM expenses WHERE id = ?').get(result.lastInsertRowid);
@@ -1197,7 +1200,7 @@ router.put('/expenses/:id', (req, res) => {
   const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
   if (!expense) return res.status(404).json({ error: 'Expense not found.' });
 
-  const { title, amount, category, expense_date, notes } = req.body || {};
+  const { title, amount, category, expense_date, notes, recurrence } = req.body || {};
 
   if (title !== undefined && (typeof title !== 'string' || title.trim().length < 1)) {
     return res.status(400).json({ error: 'title cannot be blank.' });
@@ -1215,14 +1218,17 @@ router.put('/expenses/:id', (req, res) => {
     category:     (category && EXPENSE_CATEGORIES.includes(category)) ? category                        : expense.category,
     expense_date: expense_date !== undefined ? expense_date.trim()                                       : expense.expense_date,
     notes:        notes        !== undefined ? (notes ? String(notes).trim() : null)                     : expense.notes,
+    recurrence:   recurrence !== undefined
+                    ? ((recurrence && EXPENSE_RECURRENCES.includes(recurrence)) ? recurrence : 'none')
+                    : (expense.recurrence || 'none'),
   };
 
   db.prepare(`
     UPDATE expenses
-    SET title = ?, amount = ?, category = ?, expense_date = ?, notes = ?,
+    SET title = ?, amount = ?, category = ?, expense_date = ?, notes = ?, recurrence = ?,
         updated_at = datetime('now')
     WHERE id = ?
-  `).run(updated.title, updated.amount, updated.category, updated.expense_date, updated.notes, expense.id);
+  `).run(updated.title, updated.amount, updated.category, updated.expense_date, updated.notes, updated.recurrence, expense.id);
 
   const row = db.prepare('SELECT * FROM expenses WHERE id = ?').get(expense.id);
   return res.json(row);
