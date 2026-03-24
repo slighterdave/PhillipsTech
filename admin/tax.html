@@ -484,6 +484,7 @@
                   <th>Date</th>
                   <th>Description</th>
                   <th>Category</th>
+                  <th>Recurrence</th>
                   <th>Notes</th>
                   <th class="amount-col">Amount (£)</th>
                 </tr>
@@ -681,10 +682,21 @@
       empty.style.display = 'none';
       tbody.closest('table').style.display = '';
       rows.forEach(function (r) {
+        const recLabel = r.recurrence && r.recurrence !== 'none' ? r.recurrence : '';
+        let recCell;
+        if (recLabel) {
+          const endPart = r.recurrence_end_date
+            ? ` <span style="font-size:.75rem;color:var(--text-muted)">until ${esc(String(r.recurrence_end_date).slice(0, 10))}</span>`
+            : '';
+          recCell = `<span class="badge badge-cat" style="background:#ecfdf5;color:#065f46">↻ ${esc(recLabel)}</span>${endPart}`;
+        } else {
+          recCell = '<span style="color:var(--text-muted)">—</span>';
+        }
         tbody.insertAdjacentHTML('beforeend', `<tr>
           <td>${esc(r.expense_date)}</td>
           <td>${esc(r.title)}</td>
           <td><span class="badge badge-cat">${esc(r.category)}</span></td>
+          <td>${recCell}</td>
           <td>${esc(r.notes || '')}</td>
           <td class="amount-col">£${fmt(r.amount)}</td>
         </tr>`);
@@ -754,11 +766,12 @@
 
       // Section: Expenses
       rows.push(['=== ALLOWABLE EXPENSES ===']);
-      rows.push(['Date', 'Description', 'Category', 'Notes', 'Amount (GBP)']);
+      rows.push(['Date', 'Description', 'Category', 'Recurrence', 'Ends On', 'Notes', 'Amount (GBP)']);
       state.expenses.forEach(function (r) {
-        rows.push([r.expense_date, r.title, r.category, r.notes || '', r.amount]);
+        const rec = r.recurrence && r.recurrence !== 'none' ? r.recurrence : '';
+        rows.push([r.expense_date, r.title, r.category, rec, r.recurrence_end_date || '', r.notes || '', r.amount]);
       });
-      rows.push(['', '', '', 'TOTAL', state.summary.total_expenses || 0]);
+      rows.push(['', '', '', '', '', 'TOTAL', state.summary.total_expenses || 0]);
       rows.push([]);
 
       // Section: Summary
