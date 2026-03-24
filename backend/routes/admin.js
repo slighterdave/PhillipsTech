@@ -1235,4 +1235,71 @@ router.delete('/expenses/:id', (req, res) => {
   return res.json({ success: true });
 });
 
+// ── Tax Summary ────────────────────────────────────────────────────────────────
+
+// GET /api/admin/tax-summary – aggregate income, payments & expenses for a date range
+// Query params: from (YYYY-MM-DD), to (YYYY-MM-DD)
+router.get('/tax-summary', (req, res) => {
+  const { from, to } = req.query;
+
+  if (!from || !/^\d{4}-\d{2}-\d{2}$/.test(String(from))) {
+    return res.status(400).json({ error: 'from is required and must be a valid date (YYYY-MM-DD).' });
+  }
+  if (!to || !/^\d{4}-\d{2}-\d{2}$/.test(String(to))) {
+    return res.status(400).json({ error: 'to is required and must be a valid date (YYYY-MM-DD).' });
+  }
+
+  // Invoices issued in period (accrual / turnover basis)
+  const invoices = db.prepare(`
+    SELECT i.id, i.invoice_num, i.amount, i.issued_date, i.paid, i.paid_date, i.notes,
+           c.name AS client_name, c.company AS client_company
+    FROM invoices i
+    JOIN clients c ON c.id = i.client_id
+    WHERE i.issued_date >= ? AND i.issued_date <= ?
+    ORDER BY i.issued_date ASC, i.id ASC
+  `).all(String(from), String(to));
+
+  // Payments received in period (cash basis – invoices paid in this period)
+  const payments = db.prepare(`
+    SELECT i.id, i.invoice_num, i.amount, i.issued_date, i.paid_date, i.notes,
+           c.name AS client_name, c.company AS client_company
+    FROM invoices i
+    JOIN clients c ON c.id = i.client_id
+    WHERE i.paid = 1 AND i.paid_date >= ? AND i.paid_date <= ?
+    ORDER BY i.paid_date ASC, i.id ASC
+  `).all(String(from), String(to));
+
+  // Expenses in period
+  const expenses = db.prepare(`
+    SELECT * FROM expenses
+    WHERE expense_date >= ? AND expense_date <= ?
+    ORDER BY expense_date ASC, id ASC
+  `).all(String(from), String(to));
+
+  const totalInvoiced  = invoices.reduce((s, r) => s + r.amount, 0);
+  const totalReceived  = payments.reduce((s, r) => s + r.amount, 0);
+  const totalExpenses  = expenses.reduce((s, r) => s + r.amount, 0);
+  const netProfit      = totalReceived - totalExpenses;
+
+  // Expense breakdown by category
+  const expenseByCategory = {};
+  for (const e of expenses) {
+    expenseByCategory[e.category] = (expenseByCategory[e.category] || 0) + e.amount;
+  }
+
+  return res.json({
+    period: { from, to },
+    summary: {
+      total_invoiced:  totalInvoiced,
+      total_received:  totalReceived,
+      total_expenses:  totalExpenses,
+      net_profit:      netProfit,
+    },
+    expense_by_category: expenseByCategory,
+    invoices,
+    payments,
+    expenses,
+  });
+});
+
 module.exports = router;

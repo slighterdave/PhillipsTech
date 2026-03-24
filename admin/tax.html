@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tax Tracker – PhillipsTech Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #0066cc;
+      --primary-dark: #0052a3;
+      --sidebar-bg:   #1a1a2e;
+      --sidebar-text: #c9d1d9;
+      --sidebar-hover:#243251;
+      --text:         #1a1a2e;
+      --text-muted:   #6c757d;
+      --border:       #dee2e6;
+      --bg:           #f0f2f5;
+      --white:        #ffffff;
+      --success:      #198754;
+      --danger:       #dc3545;
+      --warning:      #fd7e14;
+      --radius:       8px;
+      --shadow:       0 2px 12px rgba(0,0,0,.07);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+    .sidebar-brand {
+      padding: 1.5rem 1.25rem 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar-brand span { color: var(--primary); }
+    .sidebar nav { flex: 1; padding: .75rem 0; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .625rem 1.25rem;
+      cursor: pointer;
+      font-size: .9rem;
+      border-left: 3px solid transparent;
+      transition: background .15s, border-color .15s;
+      color: var(--sidebar-text);
+      text-decoration: none;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: var(--sidebar-hover);
+      border-left-color: var(--primary);
+      color: #fff;
+    }
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,.08);
+      font-size: .8rem;
+      color: var(--sidebar-text);
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #fc8181;
+      cursor: pointer;
+      font-size: .85rem;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .logout-btn:hover { color: #fff; }
+
+    /* ── Main ── */
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .topbar h1 { font-size: 1.25rem; font-weight: 700; }
+
+    .content { padding: 2rem; flex: 1; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: flex-end;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .toolbar label { font-size: .85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: .25rem; }
+    .toolbar select, .toolbar input[type="date"] {
+      padding: .45rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .9rem;
+      background: var(--white);
+    }
+    .toolbar .divider { width: 1px; height: 38px; background: var(--border); }
+
+    /* ── Summary Cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem 1.5rem;
+    }
+    .card-label { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: .4rem; }
+    .card-value { font-size: 1.6rem; font-weight: 700; }
+    .card-value.income  { color: var(--success); }
+    .card-value.expense { color: var(--danger); }
+    .card-value.profit  { color: var(--primary); }
+    .card-value.neutral { color: var(--text); }
+    .card-sub { font-size: .78rem; color: var(--text-muted); margin-top: .3rem; }
+
+    /* ── UK Tax Note ── */
+    .uk-note {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius);
+      padding: .85rem 1.1rem;
+      font-size: .85rem;
+      color: #1e40af;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: .6rem;
+      align-items: flex-start;
+    }
+    .uk-note svg { flex-shrink: 0; margin-top: .1rem; }
+
+    /* ── Tabs ── */
+    .tabs {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .tab-header {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      padding: .85rem 1.5rem;
+      font-size: .9rem;
+      font-weight: 600;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color .15s, border-color .15s;
+      margin-bottom: -1px;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+    .tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      font-size: .75rem;
+      font-weight: 700;
+      background: #e2e8f0;
+      color: var(--text);
+      margin-left: .4rem;
+    }
+    .tab-panel { display: none; padding: 1.5rem; }
+    .tab-panel.active { display: block; }
+
+    /* ── Table ── */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    thead th {
+      padding: .65rem .9rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-muted);
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td { padding: .7rem .9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #f8fafc; }
+    .amount-col { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-block;
+      padding: .2rem .6rem;
+      border-radius: 12px;
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .badge-paid    { background: #d1fae5; color: #065f46; }
+    .badge-unpaid  { background: #fef3c7; color: #92400e; }
+    .badge-cat     { background: #e0e7ff; color: #3730a3; }
+
+    /* ── Category breakdown ── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: .75rem;
+      margin-top: 1.25rem;
+    }
+    .cat-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .75rem 1rem;
+    }
+    .cat-card-label { font-size: .78rem; font-weight: 600; text-transform: capitalize; color: var(--text-muted); margin-bottom: .2rem; }
+    .cat-card-value { font-size: 1.1rem; font-weight: 700; color: var(--danger); }
+
+    /* ── Export bar ── */
+    .export-bar {
+      display: flex;
+      gap: .75rem;
+      justify-content: flex-end;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .5rem 1rem;
+      border-radius: var(--radius);
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background .15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { background: var(--bg); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: #146c43; }
+
+    .empty-state { padding: 2.5rem 1rem; text-align: center; color: var(--text-muted); font-size: .9rem; }
+
+    /* ── Sidebar backdrop (mobile) ── */
+    .sidebar-backdrop { display: none; }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform .25s; z-index: 200; }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 199; display: none; }
+      .sidebar-backdrop.show { display: block; }
+      .main { margin-left: 0; }
+      .content { padding: 1rem; }
+      .topbar { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span>Phillips</span>Tech</div>
+    <nav>
+      <a class="nav-item" href="dashboard.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="clients.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Clients
+      </a>
+      <a class="nav-item" href="invoices.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        Invoices
+      </a>
+      <a class="nav-item" href="expenses.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+        Expenses
+      </a>
+      <a class="nav-item" href="services.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z"/></svg>
+        Services
+      </a>
+      <a class="nav-item active" href="tax.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+        Tax Tracker
+      </a>
+      <a class="nav-item" href="settings.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      Signed in as <br/>
+      <strong id="sidebar-email">—</strong><br/>
+      <button class="logout-btn" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main">
+    <div class="topbar">
+      <h1>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:.4rem;color:var(--primary)" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+        Tax Tracker
+      </h1>
+    </div>
+
+    <div class="content">
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div>
+          <label for="tax-year-select">UK Tax Year</label>
+          <select id="tax-year-select"></select>
+        </div>
+        <div class="divider"></div>
+        <div>
+          <label for="from-date">From</label>
+          <input type="date" id="from-date" />
+        </div>
+        <div>
+          <label for="to-date">To</label>
+          <input type="date" id="to-date" />
+        </div>
+        <button class="btn btn-primary" id="load-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          Load
+        </button>
+      </div>
+
+      <!-- UK compliance note -->
+      <div class="uk-note">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        <span>
+          UK Self Assessment: The tax year runs <strong>6 April – 5 April</strong>.
+          <em>Turnover</em> = invoices issued in period.
+          <em>Payments received</em> = cash actually collected (cash basis).
+          Report allowable expenses on <strong>SA103F</strong>. This tool is for reference only — always verify with a qualified accountant.
+        </span>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="cards" id="cards">
+        <div class="card">
+          <div class="card-label">Turnover (Invoiced)</div>
+          <div class="card-value income" id="card-invoiced">—</div>
+          <div class="card-sub">Invoices issued in period</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Payments Received</div>
+          <div class="card-value income" id="card-received">—</div>
+          <div class="card-sub">Cash basis income</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Allowable Expenses</div>
+          <div class="card-value expense" id="card-expenses">—</div>
+          <div class="card-sub">Total expenses in period</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Net Profit</div>
+          <div class="card-value profit" id="card-profit">—</div>
+          <div class="card-sub">Payments received − expenses</div>
+        </div>
+      </div>
+
+      <!-- Export buttons -->
+      <div class="export-bar">
+        <button class="btn btn-outline" id="export-full-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          Export Full Report (CSV)
+        </button>
+        <button class="btn btn-success" id="export-sa103-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          Export SA103F Summary (CSV)
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab-header">
+          <button class="tab-btn active" data-tab="invoices">
+            Invoices (Turnover)
+            <span class="tab-count" id="tab-count-invoices">0</span>
+          </button>
+          <button class="tab-btn" data-tab="payments">
+            Payments Received
+            <span class="tab-count" id="tab-count-payments">0</span>
+          </button>
+          <button class="tab-btn" data-tab="expenses">
+            Expenses
+            <span class="tab-count" id="tab-count-expenses">0</span>
+          </button>
+        </div>
+
+        <!-- Invoices panel -->
+        <div class="tab-panel active" id="panel-invoices">
+          <div class="tbl-wrap">
+            <table id="tbl-invoices">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Date Issued</th>
+                  <th>Client</th>
+                  <th>Notes</th>
+                  <th>Status</th>
+                  <th class="amount-col">Amount (£)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-invoices"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="empty-invoices" style="display:none">No invoices in this period.</div>
+        </div>
+
+        <!-- Payments panel -->
+        <div class="tab-panel" id="panel-payments">
+          <div class="tbl-wrap">
+            <table id="tbl-payments">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Date Paid</th>
+                  <th>Date Issued</th>
+                  <th>Client</th>
+                  <th>Notes</th>
+                  <th class="amount-col">Amount (£)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-payments"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="empty-payments" style="display:none">No payments received in this period.</div>
+        </div>
+
+        <!-- Expenses panel -->
+        <div class="tab-panel" id="panel-expenses">
+          <div class="tbl-wrap">
+            <table id="tbl-expenses">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Notes</th>
+                  <th class="amount-col">Amount (£)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-expenses"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="empty-expenses" style="display:none">No expenses in this period.</div>
+          <div id="cat-breakdown"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+
+  <script>
+    'use strict';
+
+    // ── Auth helpers ────────────────────────────────────────────────────────────
+    function getToken() { return localStorage.getItem('auth_token'); }
+    function logout() { localStorage.removeItem('auth_token'); location.href = 'login.html'; }
+
+    async function authFetch(url, opts = {}) {
+      const token = getToken();
+      if (!token) { logout(); return; }
+      const res = await fetch(url, {
+        ...opts,
+        headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token,
+          ...(opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}) }
+      });
+      if (res.status === 401) { logout(); return; }
+      return res;
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmt(n) {
+      return Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // ── UK Tax Year helpers ─────────────────────────────────────────────────────
+    function ukTaxYearStart(year) { return year + '-04-06'; }
+    function ukTaxYearEnd(year)   { return (year + 1) + '-04-05'; }
+
+    function currentUkTaxYear() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const cutoff = new Date(y, 3, 6); // April 6 (month is zero-indexed)
+      return now >= cutoff ? y : y - 1;
+    }
+
+    function taxYearLabel(startYear) {
+      return startYear + '–' + String(startYear + 1).slice(2) + ' (6 Apr ' + startYear + ' – 5 Apr ' + (startYear + 1) + ')';
+    }
+
+    // ── Populate tax year selector ──────────────────────────────────────────────
+    function populateTaxYears() {
+      const sel = document.getElementById('tax-year-select');
+      const current = currentUkTaxYear();
+      for (let y = current; y >= current - 9; y--) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = taxYearLabel(y);
+        if (y === current) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      sel.addEventListener('change', function () {
+        const y = parseInt(this.value, 10);
+        document.getElementById('from-date').value = ukTaxYearStart(y);
+        document.getElementById('to-date').value   = ukTaxYearEnd(y);
+      });
+    }
+
+    function setDefaultDates() {
+      const y = currentUkTaxYear();
+      document.getElementById('from-date').value = ukTaxYearStart(y);
+      document.getElementById('to-date').value   = ukTaxYearEnd(y);
+    }
+
+    // ── State ───────────────────────────────────────────────────────────────────
+    var state = { invoices: [], payments: [], expenses: [], summary: {}, expenseByCategory: {}, period: {} };
+
+    // ── SA103F category → box mapping ────────────────────────────────────────────
+    var SA103F_CATEGORY_MAP = {
+      software:   'Box 17 – Phone, fax and internet',
+      hardware:   'Box 19 – Other office costs',
+      hosting:    'Box 17 – Phone, fax and internet',
+      marketing:  'Box 20 – Advertising and business entertainment',
+      travel:     'Box 24 – Travel',
+      utilities:  'Box 19 – Other office costs',
+      office:     'Box 19 – Other office costs',
+      other:      'Box 27 – Other allowable business expenses',
+    };
+
+    // ── Load data ───────────────────────────────────────────────────────────────
+    async function loadData() {
+      const from = document.getElementById('from-date').value;
+      const to   = document.getElementById('to-date').value;
+      if (!from || !to) { alert('Please select a date range.'); return; }
+
+      const res = await authFetch('/api/admin/tax-summary?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      if (!res || !res.ok) { alert('Failed to load tax data.'); return; }
+      const data = await res.json();
+
+      state.invoices          = data.invoices || [];
+      state.payments          = data.payments || [];
+      state.expenses          = data.expenses || [];
+      state.summary           = data.summary  || {};
+      state.expenseByCategory = data.expense_by_category || {};
+      state.period            = data.period || {};
+
+      renderCards();
+      renderInvoices();
+      renderPayments();
+      renderExpenses();
+    }
+
+    // ── Render cards ─────────────────────────────────────────────────────────────
+    function renderCards() {
+      const s = state.summary;
+      document.getElementById('card-invoiced').textContent = '£' + fmt(s.total_invoiced || 0);
+      document.getElementById('card-received').textContent = '£' + fmt(s.total_received || 0);
+      document.getElementById('card-expenses').textContent = '£' + fmt(s.total_expenses || 0);
+
+      const profitEl = document.getElementById('card-profit');
+      const profit = s.net_profit || 0;
+      profitEl.textContent = (profit < 0 ? '-' : '') + '£' + fmt(Math.abs(profit));
+      profitEl.className = 'card-value ' + (profit < 0 ? 'expense' : 'profit');
+    }
+
+    // ── Render invoices ──────────────────────────────────────────────────────────
+    function renderInvoices() {
+      const rows = state.invoices;
+      document.getElementById('tab-count-invoices').textContent = rows.length;
+      const tbody = document.getElementById('tbody-invoices');
+      const empty = document.getElementById('empty-invoices');
+      tbody.innerHTML = '';
+      if (rows.length === 0) { empty.style.display = ''; tbody.closest('table').style.display = 'none'; return; }
+      empty.style.display = 'none';
+      tbody.closest('table').style.display = '';
+      rows.forEach(function (r) {
+        const client = esc(r.client_company || r.client_name);
+        const status = r.paid
+          ? '<span class="badge badge-paid">Paid</span>'
+          : '<span class="badge badge-unpaid">Unpaid</span>';
+        tbody.insertAdjacentHTML('beforeend', `<tr>
+          <td>${esc(r.invoice_num)}</td>
+          <td>${esc(r.issued_date)}</td>
+          <td>${client}</td>
+          <td>${esc(r.notes || '')}</td>
+          <td>${status}</td>
+          <td class="amount-col">£${fmt(r.amount)}</td>
+        </tr>`);
+      });
+    }
+
+    // ── Render payments ──────────────────────────────────────────────────────────
+    function renderPayments() {
+      const rows = state.payments;
+      document.getElementById('tab-count-payments').textContent = rows.length;
+      const tbody = document.getElementById('tbody-payments');
+      const empty = document.getElementById('empty-payments');
+      tbody.innerHTML = '';
+      if (rows.length === 0) { empty.style.display = ''; tbody.closest('table').style.display = 'none'; return; }
+      empty.style.display = 'none';
+      tbody.closest('table').style.display = '';
+      rows.forEach(function (r) {
+        const client = esc(r.client_company || r.client_name);
+        tbody.insertAdjacentHTML('beforeend', `<tr>
+          <td>${esc(r.invoice_num)}</td>
+          <td>${esc(r.paid_date || '')}</td>
+          <td>${esc(r.issued_date)}</td>
+          <td>${client}</td>
+          <td>${esc(r.notes || '')}</td>
+          <td class="amount-col">£${fmt(r.amount)}</td>
+        </tr>`);
+      });
+    }
+
+    // ── Render expenses ──────────────────────────────────────────────────────────
+    function renderExpenses() {
+      const rows = state.expenses;
+      document.getElementById('tab-count-expenses').textContent = rows.length;
+      const tbody = document.getElementById('tbody-expenses');
+      const empty = document.getElementById('empty-expenses');
+      tbody.innerHTML = '';
+      if (rows.length === 0) {
+        empty.style.display = '';
+        tbody.closest('table').style.display = 'none';
+        document.getElementById('cat-breakdown').innerHTML = '';
+        return;
+      }
+      empty.style.display = 'none';
+      tbody.closest('table').style.display = '';
+      rows.forEach(function (r) {
+        tbody.insertAdjacentHTML('beforeend', `<tr>
+          <td>${esc(r.expense_date)}</td>
+          <td>${esc(r.title)}</td>
+          <td><span class="badge badge-cat">${esc(r.category)}</span></td>
+          <td>${esc(r.notes || '')}</td>
+          <td class="amount-col">£${fmt(r.amount)}</td>
+        </tr>`);
+      });
+
+      // Category breakdown
+      const cats = state.expenseByCategory;
+      const keys = Object.keys(cats).sort();
+      if (keys.length > 0) {
+        let html = '<h3 style="margin:1.5rem 0 .75rem;font-size:.9rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">By Category</h3><div class="cat-grid">';
+        keys.forEach(function (k) {
+          html += `<div class="cat-card">
+            <div class="cat-card-label">${esc(k)}</div>
+            <div class="cat-card-value">£${fmt(cats[k])}</div>
+          </div>`;
+        });
+        html += '</div>';
+        document.getElementById('cat-breakdown').innerHTML = html;
+      } else {
+        document.getElementById('cat-breakdown').innerHTML = '';
+      }
+    }
+
+    // ── CSV export helpers ───────────────────────────────────────────────────────
+    function csvRow(cells) {
+      return cells.map(function (c) {
+        var s = String(c == null ? '' : c);
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+          s = '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }).join(',');
+    }
+
+    function downloadCsv(filename, rows) {
+      const content = rows.map(csvRow).join('\r\n');
+      const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportFull() {
+      const from = state.period.from || '';
+      const to   = state.period.to   || '';
+
+      const rows = [];
+
+      // Section: Invoices
+      rows.push(['=== INVOICES (TURNOVER) ===']);
+      rows.push(['Invoice #', 'Date Issued', 'Client', 'Notes', 'Status', 'Amount (GBP)']);
+      state.invoices.forEach(function (r) {
+        rows.push([r.invoice_num, r.issued_date, r.client_company || r.client_name, r.notes || '', r.paid ? 'Paid' : 'Unpaid', r.amount]);
+      });
+      rows.push(['', '', '', '', 'TOTAL', state.summary.total_invoiced || 0]);
+      rows.push([]);
+
+      // Section: Payments
+      rows.push(['=== PAYMENTS RECEIVED (CASH BASIS) ===']);
+      rows.push(['Invoice #', 'Date Paid', 'Date Issued', 'Client', 'Notes', 'Amount (GBP)']);
+      state.payments.forEach(function (r) {
+        rows.push([r.invoice_num, r.paid_date || '', r.issued_date, r.client_company || r.client_name, r.notes || '', r.amount]);
+      });
+      rows.push(['', '', '', '', 'TOTAL', state.summary.total_received || 0]);
+      rows.push([]);
+
+      // Section: Expenses
+      rows.push(['=== ALLOWABLE EXPENSES ===']);
+      rows.push(['Date', 'Description', 'Category', 'Notes', 'Amount (GBP)']);
+      state.expenses.forEach(function (r) {
+        rows.push([r.expense_date, r.title, r.category, r.notes || '', r.amount]);
+      });
+      rows.push(['', '', '', 'TOTAL', state.summary.total_expenses || 0]);
+      rows.push([]);
+
+      // Section: Summary
+      rows.push(['=== SUMMARY ===']);
+      rows.push(['Period', from + ' to ' + to]);
+      rows.push(['Turnover (Invoiced)', state.summary.total_invoiced || 0]);
+      rows.push(['Payments Received (Cash Basis)', state.summary.total_received || 0]);
+      rows.push(['Total Allowable Expenses', state.summary.total_expenses || 0]);
+      rows.push(['Net Profit (Cash Basis)', state.summary.net_profit || 0]);
+
+      downloadCsv('phillipstech-tax-full-' + from + '_' + to + '.csv', rows);
+    }
+
+    function exportSa103() {
+      const from = state.period.from || '';
+      const to   = state.period.to   || '';
+
+      const rows = [];
+      rows.push(['PhillipsTech – SA103F Self-Employment Tax Summary']);
+      rows.push(['Period', from + ' to ' + to]);
+      rows.push([]);
+      rows.push(['SA103F Reference', 'Description', 'Amount (GBP)']);
+      rows.push(['Box 9 – Turnover', 'Total invoices issued in period', state.summary.total_invoiced || 0]);
+      rows.push(['Cash Received', 'Payments actually received in period', state.summary.total_received || 0]);
+      rows.push([]);
+      rows.push(['Allowable Expenses (SA103F Boxes 17-30)']);
+      rows.push(['Category', 'Amount (GBP)']);
+
+      var cats = state.expenseByCategory;
+      Object.keys(cats).sort().forEach(function (k) {
+        rows.push([SA103F_CATEGORY_MAP[k] || 'Box 27 – Other allowable business expenses (' + k + ')', cats[k]]);
+      });
+
+      rows.push([]);
+      rows.push(['Total Allowable Expenses', state.summary.total_expenses || 0]);
+      rows.push(['Net Profit (Cash Basis)', state.summary.net_profit || 0]);
+      rows.push([]);
+      rows.push(['NOTE: This is for reference only. Verify with a qualified accountant before submission.']);
+
+      downloadCsv('phillipstech-SA103F-' + from + '_' + to + '.csv', rows);
+    }
+
+    // ── Tabs ────────────────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ── Sidebar / Auth ──────────────────────────────────────────────────────────
+    (function initAuth() {
+      const token = getToken();
+      if (!token) { logout(); return; }
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const emailEl = document.getElementById('sidebar-email');
+        if (emailEl) emailEl.textContent = payload.email || '—';
+      } catch {}
+    })();
+
+    document.getElementById('logout-btn').addEventListener('click', logout);
+
+    (function initSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      const hamburger = document.getElementById('hamburger');
+      if (hamburger) {
+        hamburger.addEventListener('click', function () {
+          sidebar.classList.toggle('open');
+          backdrop.classList.toggle('show');
+        });
+      }
+      if (backdrop) {
+        backdrop.addEventListener('click', function () {
+          sidebar.classList.remove('open');
+          backdrop.classList.remove('show');
+        });
+      }
+      sidebar.querySelectorAll('.nav-item').forEach(function (el) {
+        el.addEventListener('click', function () {
+          sidebar.classList.remove('open');
+          backdrop.classList.remove('show');
+        });
+      });
+    })();
+
+    // ── Initialise ──────────────────────────────────────────────────────────────
+    populateTaxYears();
+    setDefaultDates();
+    document.getElementById('load-btn').addEventListener('click', loadData);
+    document.getElementById('export-full-btn').addEventListener('click', exportFull);
+    document.getElementById('export-sa103-btn').addEventListener('click', exportSa103);
+
+    // Auto-load on page open
+    loadData();
+  </script>
+</body>
+</html>
