@@ -1129,6 +1129,7 @@ router.put('/settings', (req, res) => {
 // ── Expenses routes ────────────────────────────────────────────────────────
 
 const EXPENSE_CATEGORIES = ['software', 'hardware', 'hosting', 'marketing', 'travel', 'utilities', 'office', 'other'];
+const EXPENSE_RECURRENCES = ['none', 'weekly', 'monthly', 'quarterly', 'yearly'];
 
 // GET /api/admin/expenses – list all expenses (with optional filters)
 router.get('/expenses', (req, res) => {
@@ -1164,7 +1165,7 @@ router.get('/expenses', (req, res) => {
 
 // POST /api/admin/expenses – create an expense
 router.post('/expenses', (req, res) => {
-  const { title, amount, category, expense_date, notes } = req.body || {};
+  const { title, amount, category, expense_date, notes, recurrence, recurrence_end_date } = req.body || {};
 
   if (!title || typeof title !== 'string' || title.trim().length < 1) {
     return res.status(400).json({ error: 'title is required.' });
@@ -1176,16 +1177,30 @@ router.post('/expenses', (req, res) => {
     return res.status(400).json({ error: 'expense_date is required (YYYY-MM-DD).' });
   }
   const cat = (category && EXPENSE_CATEGORIES.includes(category)) ? category : 'other';
+  const rec = (recurrence && EXPENSE_RECURRENCES.includes(recurrence)) ? recurrence : 'none';
+
+  let recEndDate = null;
+  if (recurrence_end_date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(recurrence_end_date).trim())) {
+      return res.status(400).json({ error: 'recurrence_end_date must be YYYY-MM-DD.' });
+    }
+    if (String(recurrence_end_date).trim() <= expense_date.trim()) {
+      return res.status(400).json({ error: 'recurrence_end_date must be after expense_date.' });
+    }
+    recEndDate = String(recurrence_end_date).trim();
+  }
 
   const result = db.prepare(`
-    INSERT INTO expenses (title, amount, category, expense_date, notes)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO expenses (title, amount, category, expense_date, notes, recurrence, recurrence_end_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
     title.trim(),
     parseFloat(amount),
     cat,
     expense_date.trim(),
     notes ? String(notes).trim() : null,
+    rec,
+    recEndDate,
   );
 
   const created = db.prepare('SELECT * FROM expenses WHERE id = ?').get(result.lastInsertRowid);
@@ -1197,7 +1212,7 @@ router.put('/expenses/:id', (req, res) => {
   const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
   if (!expense) return res.status(404).json({ error: 'Expense not found.' });
 
-  const { title, amount, category, expense_date, notes } = req.body || {};
+  const { title, amount, category, expense_date, notes, recurrence, recurrence_end_date } = req.body || {};
 
   if (title !== undefined && (typeof title !== 'string' || title.trim().length < 1)) {
     return res.status(400).json({ error: 'title cannot be blank.' });
@@ -1209,20 +1224,44 @@ router.put('/expenses/:id', (req, res) => {
     return res.status(400).json({ error: 'expense_date must be YYYY-MM-DD.' });
   }
 
+  const effectiveDate = expense_date !== undefined ? expense_date.trim() : expense.expense_date;
+
+  let recEndDate;
+  if (recurrence_end_date !== undefined) {
+    if (recurrence_end_date === null || recurrence_end_date === '') {
+      recEndDate = null;
+    } else {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(recurrence_end_date).trim())) {
+        return res.status(400).json({ error: 'recurrence_end_date must be YYYY-MM-DD.' });
+      }
+      if (String(recurrence_end_date).trim() <= effectiveDate) {
+        return res.status(400).json({ error: 'recurrence_end_date must be after expense_date.' });
+      }
+      recEndDate = String(recurrence_end_date).trim();
+    }
+  } else {
+    recEndDate = expense.recurrence_end_date || null;
+  }
+
   const updated = {
-    title:        title        !== undefined ? title.trim()                                              : expense.title,
-    amount:       amount       !== undefined ? parseFloat(amount)                                        : expense.amount,
-    category:     (category && EXPENSE_CATEGORIES.includes(category)) ? category                        : expense.category,
-    expense_date: expense_date !== undefined ? expense_date.trim()                                       : expense.expense_date,
-    notes:        notes        !== undefined ? (notes ? String(notes).trim() : null)                     : expense.notes,
+    title:                title        !== undefined ? title.trim()                                              : expense.title,
+    amount:               amount       !== undefined ? parseFloat(amount)                                        : expense.amount,
+    category:             (category && EXPENSE_CATEGORIES.includes(category)) ? category                        : expense.category,
+    expense_date:         effectiveDate,
+    notes:                notes        !== undefined ? (notes ? String(notes).trim() : null)                     : expense.notes,
+    recurrence:           recurrence !== undefined
+                            ? ((recurrence && EXPENSE_RECURRENCES.includes(recurrence)) ? recurrence : 'none')
+                            : (expense.recurrence || 'none'),
+    recurrence_end_date:  recEndDate,
   };
 
   db.prepare(`
     UPDATE expenses
-    SET title = ?, amount = ?, category = ?, expense_date = ?, notes = ?,
-        updated_at = datetime('now')
+    SET title = ?, amount = ?, category = ?, expense_date = ?, notes = ?, recurrence = ?,
+        recurrence_end_date = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(updated.title, updated.amount, updated.category, updated.expense_date, updated.notes, expense.id);
+  `).run(updated.title, updated.amount, updated.category, updated.expense_date, updated.notes,
+         updated.recurrence, updated.recurrence_end_date, expense.id);
 
   const row = db.prepare('SELECT * FROM expenses WHERE id = ?').get(expense.id);
   return res.json(row);

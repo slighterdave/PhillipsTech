@@ -225,6 +225,7 @@
     .badge-utilities { background: #ffedd5; color: #9a3412; }
     .badge-office    { background: #f3f4f6; color: #374151; }
     .badge-other     { background: #f1f5f9; color: #475569; }
+    .badge-recurring { background: #ecfdf5; color: #065f46; }
 
     .action-btn {
       background: none;
@@ -240,6 +241,8 @@
     .action-btn.edit-btn:hover { background: var(--primary); color: #fff; }
     .action-btn.del-btn  { color: var(--danger);  border-color: var(--danger);  }
     .action-btn.del-btn:hover  { background: var(--danger);  color: #fff; }
+    .action-btn.next-btn { color: var(--success); border-color: var(--success); }
+    .action-btn.next-btn:hover { background: var(--success); color: #fff; }
 
     .empty-state {
       text-align: center;
@@ -336,6 +339,9 @@
       display: none;
     }
     .form-error.visible { display: block; }
+
+    .recur-end-group { transition: opacity .15s; }
+    .recur-end-group.hidden { display: none; }
 
     /* ── Mobile hamburger / drawer ── */
     .hamburger {
@@ -492,6 +498,7 @@
                 <th>Category</th>
                 <th>Amount</th>
                 <th>Date</th>
+                <th>Recurrence</th>
                 <th>Notes</th>
                 <th>Actions</th>
               </tr>
@@ -535,6 +542,20 @@
             <option value="office">Office</option>
             <option value="other" selected>Other</option>
           </select>
+        </div>
+        <div class="form-group full">
+          <label for="exp-recurrence">Recurrence</label>
+          <select id="exp-recurrence">
+            <option value="none" selected>One-off (no recurrence)</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
+        <div class="form-group full recur-end-group hidden" id="recur-end-group">
+          <label for="exp-recurrence-end">Ends on <span class="muted" style="font-weight:400">(optional)</span></label>
+          <input type="date" id="exp-recurrence-end" />
         </div>
         <div class="form-group full">
           <label for="exp-notes">Notes</label>
@@ -604,6 +625,19 @@
       // ── State ────────────────────────────────────────────────────────────
       var allExpenses  = [];
       var editingId    = null;
+
+      // ── Recurrence end-date show/hide ─────────────────────────────────────
+      function updateRecurEndVisibility() {
+        var rec = document.getElementById('exp-recurrence').value;
+        var grp = document.getElementById('recur-end-group');
+        if (rec && rec !== 'none') {
+          grp.classList.remove('hidden');
+        } else {
+          grp.classList.add('hidden');
+          document.getElementById('exp-recurrence-end').value = '';
+        }
+      }
+      document.getElementById('exp-recurrence').addEventListener('change', updateRecurEndVisibility);
 
       // ── Helpers ──────────────────────────────────────────────────────────
       function esc(str) {
@@ -682,13 +716,28 @@
         document.getElementById('expenses-table').style.display = '';
 
         tbody.innerHTML = rows.map(function (e) {
+          var recLabel = e.recurrence && e.recurrence !== 'none' ? e.recurrence : '';
+          var recCell;
+          if (recLabel) {
+            var endPart = e.recurrence_end_date
+              ? ' <span class="muted" style="font-size:.75rem">until ' + esc(formatDate(e.recurrence_end_date)) + '</span>'
+              : '';
+            recCell = '<span class="badge badge-recurring">↻ ' + esc(recLabel) + '</span>' + endPart;
+          } else {
+            recCell = '<span class="muted">—</span>';
+          }
+          var nextBtn  = recLabel
+            ? '<button class="action-btn next-btn" data-id="' + e.id + '" title="Add next occurrence">+Next</button>'
+            : '';
           return '<tr>' +
             '<td>' + esc(e.title) + '</td>' +
             '<td>' + categoryBadge(e.category) + '</td>' +
             '<td class="currency-cell">' + esc(formatCurrency(e.amount)) + '</td>' +
             '<td class="date-cell">' + esc(formatDate(e.expense_date)) + '</td>' +
+            '<td>' + recCell + '</td>' +
             '<td class="muted">' + (e.notes ? esc(e.notes) : '—') + '</td>' +
             '<td>' +
+              nextBtn +
               '<button class="action-btn edit-btn" data-id="' + e.id + '">Edit</button>' +
               '<button class="action-btn del-btn"  data-id="' + e.id + '">Delete</button>' +
             '</td>' +
@@ -705,18 +754,64 @@
           openEditModal(id);
         } else if (btn.classList.contains('del-btn')) {
           deleteExpense(id);
+        } else if (btn.classList.contains('next-btn')) {
+          openNextOccurrenceModal(id);
         }
       });
+
+      // ── Next occurrence helper ────────────────────────────────────────────
+      function nextOccurrenceDate(dateStr, recurrence) {
+        var parts = dateStr.slice(0, 10).split('-');
+        var origDay = Number(parts[2]);
+        var d = new Date(Number(parts[0]), Number(parts[1]) - 1, origDay);
+        switch (recurrence) {
+          case 'weekly':    d.setDate(d.getDate() + 7);    break;
+          case 'monthly':   d.setMonth(d.getMonth() + 1);  break;
+          case 'quarterly': d.setMonth(d.getMonth() + 3);  break;
+          case 'yearly':    d.setFullYear(d.getFullYear() + 1); break;
+          default: return dateStr;
+        }
+        // If adding months/quarters/years overflowed into the next month (e.g. Jan 31 + 1 month),
+        // step back to the last day of the intended target month.
+        if (recurrence !== 'weekly' && d.getDate() !== origDay) {
+          d.setDate(0); // last day of the overflowed month
+        }
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+      }
+
+      function openNextOccurrenceModal(id) {
+        var expense = allExpenses.find(function (e) { return e.id === id; });
+        if (!expense) return;
+        editingId = null;
+        document.getElementById('expense-modal-title').textContent = 'Add Next Occurrence';
+        document.getElementById('exp-title').value          = expense.title;
+        document.getElementById('exp-amount').value         = expense.amount;
+        document.getElementById('exp-date').value           = nextOccurrenceDate(expense.expense_date, expense.recurrence || 'none');
+        document.getElementById('exp-category').value       = expense.category;
+        document.getElementById('exp-recurrence').value     = expense.recurrence || 'none';
+        document.getElementById('exp-recurrence-end').value = expense.recurrence_end_date ? expense.recurrence_end_date.slice(0, 10) : '';
+        updateRecurEndVisibility();
+        document.getElementById('exp-notes').value          = expense.notes || '';
+        hideFormError();
+        document.getElementById('expense-modal-overlay').classList.add('open');
+        document.getElementById('exp-title').focus();
+      }
 
       // ── Modal open helpers ────────────────────────────────────────────────
       function openAddModal() {
         editingId = null;
         document.getElementById('expense-modal-title').textContent = 'Add Expense';
-        document.getElementById('exp-title').value    = '';
-        document.getElementById('exp-amount').value   = '';
-        document.getElementById('exp-date').value     = new Date().toISOString().slice(0, 10);
-        document.getElementById('exp-category').value = 'other';
-        document.getElementById('exp-notes').value    = '';
+        document.getElementById('exp-title').value          = '';
+        document.getElementById('exp-amount').value         = '';
+        document.getElementById('exp-date').value           = new Date().toISOString().slice(0, 10);
+        document.getElementById('exp-category').value       = 'other';
+        document.getElementById('exp-recurrence').value     = 'none';
+        document.getElementById('exp-recurrence-end').value = '';
+        updateRecurEndVisibility();
+        document.getElementById('exp-notes').value          = '';
         hideFormError();
         document.getElementById('expense-modal-overlay').classList.add('open');
         document.getElementById('exp-title').focus();
@@ -727,11 +822,14 @@
         if (!expense) return;
         editingId = id;
         document.getElementById('expense-modal-title').textContent = 'Edit Expense';
-        document.getElementById('exp-title').value    = expense.title;
-        document.getElementById('exp-amount').value   = expense.amount;
-        document.getElementById('exp-date').value     = expense.expense_date.slice(0, 10);
-        document.getElementById('exp-category').value = expense.category;
-        document.getElementById('exp-notes').value    = expense.notes || '';
+        document.getElementById('exp-title').value          = expense.title;
+        document.getElementById('exp-amount').value         = expense.amount;
+        document.getElementById('exp-date').value           = expense.expense_date.slice(0, 10);
+        document.getElementById('exp-category').value       = expense.category;
+        document.getElementById('exp-recurrence').value     = expense.recurrence || 'none';
+        document.getElementById('exp-recurrence-end').value = expense.recurrence_end_date ? expense.recurrence_end_date.slice(0, 10) : '';
+        updateRecurEndVisibility();
+        document.getElementById('exp-notes').value          = expense.notes || '';
         hideFormError();
         document.getElementById('expense-modal-overlay').classList.add('open');
         document.getElementById('exp-title').focus();
@@ -765,17 +863,30 @@
         var amount  = document.getElementById('exp-amount').value.trim();
         var date    = document.getElementById('exp-date').value.trim();
         var cat     = document.getElementById('exp-category').value;
+        var rec     = document.getElementById('exp-recurrence').value;
+        var recEnd  = document.getElementById('exp-recurrence-end').value.trim();
         var notes   = document.getElementById('exp-notes').value.trim();
 
         if (!title)  { showFormError('Title is required.'); return; }
         if (!amount || isNaN(parseFloat(amount))) { showFormError('A valid amount is required.'); return; }
         if (!date)   { showFormError('Date is required.'); return; }
+        if (rec !== 'none' && recEnd && recEnd <= date) {
+          showFormError('End date must be after the expense date.'); return;
+        }
 
         var saveBtn = document.getElementById('exp-modal-save');
         saveBtn.disabled = true;
         hideFormError();
 
-        var body = JSON.stringify({ title: title, amount: parseFloat(amount), category: cat, expense_date: date, notes: notes || null });
+        var body = JSON.stringify({
+          title: title,
+          amount: parseFloat(amount),
+          category: cat,
+          expense_date: date,
+          recurrence: rec,
+          recurrence_end_date: (rec !== 'none' && recEnd) ? recEnd : null,
+          notes: notes || null
+        });
         var url    = editingId ? '/api/admin/expenses/' + editingId : '/api/admin/expenses';
         var method = editingId ? 'PUT' : 'POST';
 

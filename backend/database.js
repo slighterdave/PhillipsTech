@@ -127,4 +127,18 @@ try {
   // Column already exists – safe to ignore
 }
 
+// Migration: add recurrence column to expenses
+try {
+  db.exec(`ALTER TABLE expenses ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'`);
+} catch {
+  // Column already exists – safe to ignore
+}
+
+// Migration: add recurrence_end_date column to expenses
+try {
+  db.exec(`ALTER TABLE expenses ADD COLUMN recurrence_end_date TEXT`);
+} catch {
+  // Column already exists – safe to ignore
+}
+
 module.exports = db;
